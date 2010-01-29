@@ -22,8 +22,9 @@
 #include "CbobData.h"
 #include <QFile>
 #include <QSettings>
+#include <QDir>
 
-Settings::Settings(QWidget *parent) : Page(parent)
+Settings::Settings(QWidget *parent) : Page(parent), m_brightness(parent)
 {
     setupUi(this);
 
@@ -31,6 +32,7 @@ Settings::Settings(QWidget *parent) : Page(parent)
     QObject::connect(ui_recalibrateAccelerometerButton, SIGNAL(clicked()), this, SLOT(recalibrateAccel()));
     QObject::connect(ui_resetPIDButton, SIGNAL(clicked()), this, SLOT(resetPID()));
     QObject::connect(ui_cameraDefaultButton, SIGNAL(clicked()), this, SLOT(setCameraDefault()));
+    QObject::connect(ui_brightnessButton, SIGNAL(clicked()), &m_brightness, SLOT(raisePage()));
 
     QSettings m_settings("/mnt/user/cbc_v2.config",QSettings::NativeFormat);
     if(!QFile::exists("/mnt/user/cbc_v2.config")){
