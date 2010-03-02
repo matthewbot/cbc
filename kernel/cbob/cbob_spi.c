@@ -49,20 +49,18 @@ enum {
 };
 
 static int cbob_spi_current_transaction;
-static struct timer_list cbob_spi_transaction_timer;
 static void cbob_spi_transaction(unsigned long unused);
 
-static void cbob_spi_init_regs(void);
+static void cbob_spi_init_timer_regs(void);
+static void cbob_spi_init_spi_regs(void);
 static unsigned int spi_exchange_data(unsigned int dataTx);
 
 void cbob_spi_init()
 {
-  cbob_spi_init_regs();
+  cbob_spi_init_spi_regs();
+  cbob_spi_init_timer_regs();
     
   sema_init(&cbob_spi, 1);
-  
-  init_timer(&cbob_spi_transaction_timer);
-  cbob_spi_transaction_timer.function = cbob_spi_transaction;
 }
 
 int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, short incount)
@@ -85,7 +83,6 @@ int cbob_spi_sendmessage(struct cbob_message *msg)
   cbob_spi_current_message = msg;
   cbob_spi_current_transaction = 0;
   
-  mod_timer(&cbob_spi_transaction_timer, jiffies + usecs_to_jiffies(CBOB_TRANSACTION_DELAY));
   wait_for_completion(&cbob_spi_message_completion);
   
   up(&cbob_spi);
@@ -129,16 +126,18 @@ static void cbob_spi_transaction(unsigned long unused)
       break;
   }
   
-  if (++cbob_spi_current_transaction < CBOB_TRANSACTION_END)
-    mod_timer(&cbob_spi_transaction_timer, jiffies + usecs_to_jiffies(CBOB_TRANSACTION_DELAY));
-  else
+  if (++cbob_spi_current_transaction == CBOB_TRANSACTION_END)
     complete(&cbob_spi_message_completion);
 }
 
 void cbob_spi_exit(void) 
 {
 }
-  
+
+static void cbob_spi_init_timer_regs(void)
+{
+}
+
 /* Most of the following code was taken from chumby_accel.c
  * Thanks go to Chumby for providing this :)
  */
@@ -167,7 +166,7 @@ static unsigned int spi_exchange_data(unsigned int dataTx)
   return SSP_RX_REG(SPI_CHAN);
 }
   
-static void cbob_spi_init_regs(void) 
+static void cbob_spi_init_spi_regs(void) 
 {
   // hardware init
   // map GPIO ports appropriately
