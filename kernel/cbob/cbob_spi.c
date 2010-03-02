@@ -33,8 +33,68 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 
+#define CBOB_TRANSACTION_DELAY 1200
+
 static struct semaphore cbob_spi;
 
+static void cbob_spi_init_regs(void);
+static unsigned int spi_exchange_data(unsigned int dataTx);
+
+void cbob_spi_init()
+{
+  cbob_spi_init_regs();
+    
+  sema_init(&cbob_spi, 1);
+}
+
+inline static void cbob_spi_wait_transaction(void)
+{
+	udelay(CBOB_TRANSACTION_DELAY);
+}
+
+int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, short incount)
+{
+  int i;
+  short header[3], replycount = 0;
+  header[0] = 0xCB07;
+  header[1] = cmd;
+  header[2] = (outcount > 0 ? outcount : 1);
+  
+  if(down_interruptible(&cbob_spi))
+    return -EINTR;
+  
+  for(i = 0;i < 3;i++)
+    spi_exchange_data(header[i]);
+  cbob_spi_wait_transaction();
+  
+  if(outcount == 0)
+    spi_exchange_data(0);
+  else {
+    for(i = 0;i < outcount;i++)
+      spi_exchange_data(outbuf[i]);
+  }
+  cbob_spi_wait_transaction();
+  
+  replycount = spi_exchange_data(0);
+  spi_exchange_data(0);
+  cbob_spi_wait_transaction();
+  
+  for(i = 0;i < replycount;i++) {
+    if(i < incount)
+      inbuf[i] = spi_exchange_data(0);
+    else 
+      spi_exchange_data(0);
+  }
+  cbob_spi_wait_transaction();
+  
+  up(&cbob_spi);
+  return 1;
+}
+
+void cbob_spi_exit(void) 
+{
+}
+  
 /* Most of the following code was taken from chumby_accel.c
  * Thanks go to Chumby for providing this :)
  */
@@ -45,8 +105,6 @@ static struct semaphore cbob_spi;
 
 #define SPI_CHAN 0
 
-#define CBOB_SPI_TIMEOUT 500
-
 static int spi_tx_fifo_empty(void)
 { return (SSP_INT_REG(SPI_CHAN) & SSP_INT_TE);}
 
@@ -55,7 +113,6 @@ static int spi_rx_fifo_data_ready(void)
 
 static unsigned int spi_exchange_data(unsigned int dataTx) 
 {
-  ////printk("spi_exchange_data\n");
   while(!spi_tx_fifo_empty());
 
   SSP_TX_REG(SPI_CHAN)   = dataTx;	     // transfer data
@@ -65,8 +122,9 @@ static unsigned int spi_exchange_data(unsigned int dataTx)
 
   return SSP_RX_REG(SPI_CHAN);
 }
-
-void cbob_spi_init(void) {
+  
+static void cbob_spi_init_regs(void) 
+{
   // hardware init
   // map GPIO ports appropriately
   // CSPI1_SS1    F16    CSPI1_SS1 (GPIO   )     PD27  out 1  ** not controlled by CSPI 
@@ -116,71 +174,10 @@ void cbob_spi_init(void) {
   SSP_CTRL_REG(SPI_CHAN) |= (SSP_MODE_MASTER | SSP_ENABLE | SSP_SS_PULSE | SSP_PHA1 | SSP_POL1 | SSP_WS(16) );
   SSP_CTRL_REG(SPI_CHAN) |= (((BASE_FREQ/CLK_DIVIDER) / (TARGET_FREQ) >> 1) + 1) << 14;
   SSP_CTRL_REG(SPI_CHAN) &= ~SSP_MODE_MASTER;  // reset fifo
-  // //printk( "accel clock init: base freq %d, clk_divider %d, target_freq %d, calc div %d\n", BASE_FREQ, CLK_DIVIDER, TARGET_FREQ, ((BASE_FREQ/CLK_DIVIDER) / (TARGET_FREQ) >> 1) + 1 );
 
   udelay(100);      //wait
   SSP_CTRL_REG(SPI_CHAN) &= 0xFFFFFFE0;
   SSP_CTRL_REG(SPI_CHAN) |= SSP_WS(16);
   SSP_CTRL_REG(SPI_CHAN) |= SSP_MODE_MASTER;  // reset fifo
-  
-  sema_init(&cbob_spi, 1);
-  
-  //imx_gpio_mode(GPIO_PORTD | 27 | GPIO_IN | GPIO_GPIO);
-  //disable_irq(IRQ_GPIOD(27));
 }
-
-void cbob_spi_exit(void) {
-}
-
-inline static void cbob_spi_wait()
-{
-	  udelay(1200);
-}
-
-int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, short incount)
-{
-  int i;
-  short header[3], replycount = 0;
-  header[0] = 0xCB07;
-  header[1] = cmd;
-  header[2] = (outcount > 0 ? outcount : 1);
-  
-  
-  if(down_interruptible(&cbob_spi))
-    return -EINTR;
-  
-  //set_current_state(TASK_INTERRUPTIBLE);
-  
-  cbob_spi_wait();
-  
-  for(i = 0;i < 3;i++)
-    spi_exchange_data(header[i]);
- 
-  cbob_spi_wait();
-  
-  if(outcount == 0) {
-    spi_exchange_data(0);
-  }
-  for(i = 0;i < outcount;i++)
-    spi_exchange_data(outbuf[i]);
-  
-  cbob_spi_wait();
-  
-  replycount = spi_exchange_data(0);
-  spi_exchange_data(0);
-  
-  cbob_spi_wait();
-  
-  for(i = 0;i < replycount;i++) {
-    if(incount > 0) {
-      incount--;
-      inbuf[i] = spi_exchange_data(0);
-    }
-    else spi_exchange_data(0);
-  }
-  up(&cbob_spi);
-  return 1;
-}
-
-
 
