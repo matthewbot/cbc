@@ -36,6 +36,7 @@
 static struct semaphore cbob_spi;
 
 static struct cbob_message *cbob_spi_current_message;
+static short cbob_spi_current_cboblength;
 DECLARE_COMPLETION(cbob_spi_message_completion);
 
 #define CBOB_TRANSACTION_DELAY 1200
@@ -44,6 +45,7 @@ enum {
   CBOB_TRANSACTION_CHUMBYDATA,
   CBOB_TRANSACTION_CBOBLENGTH,
   CBOB_TRANSACTION_CBOBDATA,
+  CBOB_TRANSACTION_END
 };
 
 static int cbob_spi_current_transaction;
@@ -63,11 +65,6 @@ void cbob_spi_init()
   cbob_spi_transaction_timer.function = cbob_spi_transaction;
 }
 
-inline static void cbob_spi_wait_transaction(void)
-{
-	udelay(CBOB_TRANSACTION_DELAY);
-}
-
 int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, short incount)
 {
   struct cbob_message msg;
@@ -82,38 +79,14 @@ int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, sho
 
 int cbob_spi_sendmessage(struct cbob_message *msg)
 {
-  int i;
-  short header[3], replycount = 0;
-  header[0] = 0xCB07;
-  header[1] = msg->cmd;
-  header[2] = (msg->outcount > 0 ? msg->outcount : 1);
-  
   if(down_interruptible(&cbob_spi))
     return -EINTR;
   
-  for(i = 0;i < 3;i++)
-    spi_exchange_data(header[i]);
-  cbob_spi_wait_transaction();
+  cbob_spi_current_message = msg;
+  cbob_spi_current_transaction = 0;
   
-  if(msg->outcount == 0)
-    spi_exchange_data(0);
-  else {
-    for(i = 0;i < msg->outcount;i++)
-      spi_exchange_data(msg->outbuf[i]);
-  }
-  cbob_spi_wait_transaction();
-  
-  replycount = spi_exchange_data(0);
-  spi_exchange_data(0);
-  cbob_spi_wait_transaction();
-  
-  for(i = 0;i < replycount;i++) {
-    if(i < msg->incount)
-      msg->inbuf[i] = spi_exchange_data(0);
-    else 
-      spi_exchange_data(0);
-  }
-  cbob_spi_wait_transaction();
+  mod_timer(&cbob_spi_transaction_timer, jiffies + usecs_to_jiffies(CBOB_TRANSACTION_DELAY));
+  wait_for_completion(&cbob_spi_message_completion);
   
   up(&cbob_spi);
   return 1;
@@ -121,6 +94,45 @@ int cbob_spi_sendmessage(struct cbob_message *msg)
 
 static void cbob_spi_transaction(unsigned long unused)
 {
+  int i;
+  struct cbob_message *msg = cbob_spi_current_message;
+  
+  switch (cbob_spi_current_transaction) {
+    case CBOB_TRANSACTION_CHUMBYHEADER: {
+      spi_exchange_data(0xCB07);
+      spi_exchange_data(msg->cmd);
+      spi_exchange_data(msg->outcount > 0 ? msg->outcount : 1);
+      break;
+    }
+    
+    case CBOB_TRANSACTION_CHUMBYDATA:
+      if(msg->outcount == 0)
+        spi_exchange_data(0);
+      else {
+        for(i = 0;i < msg->outcount;i++)
+         spi_exchange_data(msg->outbuf[i]);
+      }
+      break;
+      
+    case CBOB_TRANSACTION_CBOBLENGTH:
+      cbob_spi_current_cboblength = spi_exchange_data(0);
+      spi_exchange_data(0);
+      break;
+      
+    case CBOB_TRANSACTION_CBOBDATA:
+      for(i = 0;i < cbob_spi_current_cboblength;i++) {
+        if(i < msg->incount)
+          msg->inbuf[i] = spi_exchange_data(0);
+        else 
+          spi_exchange_data(0);
+      }
+      break;
+  }
+  
+  if (++cbob_spi_current_transaction < CBOB_TRANSACTION_END)
+    mod_timer(&cbob_spi_transaction_timer, jiffies + usecs_to_jiffies(CBOB_TRANSACTION_DELAY));
+  else
+    complete(&cbob_spi_message_completion);
 }
 
 void cbob_spi_exit(void) 
