@@ -33,9 +33,22 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 
-#define CBOB_TRANSACTION_DELAY 1200
-
 static struct semaphore cbob_spi;
+
+static struct cbob_message *cbob_spi_current_message;
+DECLARE_COMPLETION(cbob_spi_message_completion);
+
+#define CBOB_TRANSACTION_DELAY 1200
+enum {
+  CBOB_TRANSACTION_CHUMBYHEADER,
+  CBOB_TRANSACTION_CHUMBYDATA,
+  CBOB_TRANSACTION_CBOBLENGTH,
+  CBOB_TRANSACTION_CBOBDATA,
+};
+
+static int cbob_spi_current_transaction;
+static struct timer_list cbob_spi_transaction_timer;
+static void cbob_spi_transaction(unsigned long unused);
 
 static void cbob_spi_init_regs(void);
 static unsigned int spi_exchange_data(unsigned int dataTx);
@@ -45,6 +58,9 @@ void cbob_spi_init()
   cbob_spi_init_regs();
     
   sema_init(&cbob_spi, 1);
+  
+  init_timer(&cbob_spi_transaction_timer);
+  cbob_spi_transaction_timer.function = cbob_spi_transaction;
 }
 
 inline static void cbob_spi_wait_transaction(void)
@@ -101,6 +117,10 @@ int cbob_spi_sendmessage(struct cbob_message *msg)
   
   up(&cbob_spi);
   return 1;
+}
+
+static void cbob_spi_transaction(unsigned long unused)
+{
 }
 
 void cbob_spi_exit(void) 
