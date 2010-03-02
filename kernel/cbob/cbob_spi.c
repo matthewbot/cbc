@@ -54,11 +54,23 @@ inline static void cbob_spi_wait_transaction(void)
 
 int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, short incount)
 {
+  struct cbob_message msg;
+  msg.cmd = cmd;
+  msg.outbuf = outbuf;
+  msg.outcount = outcount;
+  msg.inbuf = inbuf;
+  msg.incount = incount;
+  
+  return cbob_spi_sendmessage(&msg);
+}
+
+int cbob_spi_sendmessage(struct cbob_message *msg)
+{
   int i;
   short header[3], replycount = 0;
   header[0] = 0xCB07;
-  header[1] = cmd;
-  header[2] = (outcount > 0 ? outcount : 1);
+  header[1] = msg->cmd;
+  header[2] = (msg->outcount > 0 ? msg->outcount : 1);
   
   if(down_interruptible(&cbob_spi))
     return -EINTR;
@@ -67,11 +79,11 @@ int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, sho
     spi_exchange_data(header[i]);
   cbob_spi_wait_transaction();
   
-  if(outcount == 0)
+  if(msg->outcount == 0)
     spi_exchange_data(0);
   else {
-    for(i = 0;i < outcount;i++)
-      spi_exchange_data(outbuf[i]);
+    for(i = 0;i < msg->outcount;i++)
+      spi_exchange_data(msg->outbuf[i]);
   }
   cbob_spi_wait_transaction();
   
@@ -80,8 +92,8 @@ int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, sho
   cbob_spi_wait_transaction();
   
   for(i = 0;i < replycount;i++) {
-    if(i < incount)
-      inbuf[i] = spi_exchange_data(0);
+    if(i < msg->incount)
+      msg->inbuf[i] = spi_exchange_data(0);
     else 
       spi_exchange_data(0);
   }
