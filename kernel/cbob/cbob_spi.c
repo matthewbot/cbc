@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/jiffies.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/hardware.h>
@@ -35,6 +36,7 @@
 
 static struct semaphore cbob_spi;
 
+unsigned long cbob_spi_last_message;
 static struct cbob_message *cbob_spi_current_message;
 static short cbob_spi_current_cboblength;
 DECLARE_COMPLETION(cbob_spi_message_completion);
@@ -91,10 +93,15 @@ int cbob_spi_sendmessage(struct cbob_message *msg)
   
   cbob_spi_current_message = msg;
   cbob_spi_current_transaction = 0;
+
+  // if enough time has passed since the last transaction
+  if (time_after(jiffies, cbob_spi_last_message + usecs_to_jiffies(CBOB_TRANSACTION_DELAY)))
+    cbob_spi_do_transaction(); // go ahead and do one now to save time
   
   IMX_TCTL(TIMER) |= TCTL_TEN; // enable timer
   wait_for_completion(&cbob_spi_message_completion);
   
+  cbob_spi_last_message = jiffies;
   up(&cbob_spi);
   return 1;
 }
