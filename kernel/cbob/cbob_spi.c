@@ -48,8 +48,12 @@ enum {
   CBOB_TRANSACTION_END
 };
 
+#define TIMER IMX_TIM2_BASE
+#define TIMER_IRQ TIM2_INT
+static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+
 static int cbob_spi_current_transaction;
-static void cbob_spi_transaction(unsigned long unused);
+static int cbob_spi_do_transaction(void);
 
 static void cbob_spi_init_timer_regs(void);
 static void cbob_spi_init_spi_regs(void);
@@ -83,16 +87,20 @@ int cbob_spi_sendmessage(struct cbob_message *msg)
   cbob_spi_current_message = msg;
   cbob_spi_current_transaction = 0;
   
+  IMX_TCTL(TIMER) |= TCTL_TEN; // enable timer
   wait_for_completion(&cbob_spi_message_completion);
   
   up(&cbob_spi);
   return 1;
 }
 
-static void cbob_spi_transaction(unsigned long unused)
+static int cbob_spi_do_transaction()
 {
   int i;
   struct cbob_message *msg = cbob_spi_current_message;
+ 
+  if (cbob_spi_current_transaction == CBOB_TRANSACTION_END)
+    return 1;
   
   switch (cbob_spi_current_transaction) {
     case CBOB_TRANSACTION_CHUMBYHEADER: {
@@ -126,8 +134,11 @@ static void cbob_spi_transaction(unsigned long unused)
       break;
   }
   
-  if (++cbob_spi_current_transaction == CBOB_TRANSACTION_END)
+  if (++cbob_spi_current_transaction == CBOB_TRANSACTION_END) {
     complete(&cbob_spi_message_completion);
+    return 1;
+  } else
+    return 0;
 }
 
 void cbob_spi_exit(void) 
@@ -136,6 +147,28 @@ void cbob_spi_exit(void)
 
 static void cbob_spi_init_timer_regs(void)
 {
+  IMX_TCTL(TIMER) = TCTL_SWR; // reset timer
+  udelay(100);
+  
+  IMX_TCTL(TIMER) = TCTL_CC // counter clear when timer is disabled
+                  | TCTL_COMPEN // enable compare mode
+                  | TCTL_CLK_32; // use 32khz clock source
+  IMX_TCMP(TIMER) = 40; // 30.52 us per tick * 40 ticks = 1221 us
+  
+  request_irq(TIMER_IRQ, cbob_timer_interrupt, 0, "CBOB", 0);
+}
+
+static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+{
+  if (!(IMX_TSTAT(TIMER) & TSTAT_COMP))
+    return IRQ_NONE;
+
+  IMX_TSTAT(TIMER) = TSTAT_CAPT | TSTAT_COMP; // clear interrupts
+  
+  if (cbob_spi_do_transaction()) // if transaction finished
+    IMX_TCTL(TIMER) &= ~TCTL_TEN; // shut off timer
+    
+  return IRQ_HANDLED;
 }
 
 /* Most of the following code was taken from chumby_accel.c
