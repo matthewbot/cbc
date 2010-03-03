@@ -51,6 +51,9 @@ enum {
 static int cbob_spi_current_transaction;
 static int cbob_spi_do_transaction(void);
 
+static int cbob_spi_desync;
+static void cbob_spi_update_desync(short replycount, short incount);
+
 static void cbob_spi_init_timer(void);
 static void cbob_spi_shutdown_timer(void);
 
@@ -124,6 +127,7 @@ static int cbob_spi_do_transaction()
     case CBOB_TRANSACTION_CBOBLENGTH:
       cbob_spi_current_cboblength = spi_exchange_data(0);
       spi_exchange_data(0);
+      cbob_spi_update_desync(cbob_spi_current_cboblength, msg->incount);
       break;
       
     case CBOB_TRANSACTION_CBOBDATA:
@@ -178,6 +182,20 @@ static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *r
     IMX_TCTL(TIMER) &= ~TCTL_TEN; // shut off timer
     
   return IRQ_HANDLED;
+}
+
+static void cbob_spi_update_desync(short replycount, short incount) {
+  int desync = (replycount > incount || replycount <= 0);
+  
+  if (desync == cbob_spi_desync)
+    return;
+    
+  cbob_spi_desync = desync;
+  
+  if (desync)
+    printk(KERN_WARNING "CBOB desync detected. replycount is %hd, incount is %hd\n", replycount, incount);
+  else
+    printk(KERN_NOTICE "CBOB resynced.\n");
 }
 
 /* Most of the following code was taken from chumby_accel.c
