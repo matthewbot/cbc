@@ -37,6 +37,9 @@
 
 static struct semaphore cbob_spi;
 
+static int cbob_spi_desync;
+static void cbob_spi_update_desync(short replycount, short incount);
+
 static void cbob_spi_init_regs(void);
 static unsigned int spi_exchange_data(unsigned int dataTx);
 
@@ -76,6 +79,7 @@ int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, sho
   cbob_spi_wait_transaction();
   
   replycount = spi_exchange_data(0);
+  cbob_spi_update_desync(replycount, incount);
   spi_exchange_data(0);
   cbob_spi_wait_transaction();
   
@@ -93,6 +97,20 @@ int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, sho
 
 void cbob_spi_exit(void) 
 {
+}
+
+static void cbob_spi_update_desync(short replycount, short incount) {
+  int desync = (replycount > incount || replycount <= 0);
+  
+  if (desync == cbob_spi_desync)
+    return;
+    
+  cbob_spi_desync = desync;
+  
+  if (desync)
+    printk(KERN_WARNING "CBOB desync detected. replycount is %hd, incount is %hd\n", replycount, incount);
+  else
+    printk(KERN_NOTICE "CBOB resynced.\n");
 }
   
 /* Most of the following code was taken from chumby_accel.c
