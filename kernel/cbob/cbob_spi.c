@@ -48,21 +48,23 @@ enum {
   CBOB_TRANSACTION_END
 };
 
+static int cbob_spi_current_transaction;
+static int cbob_spi_do_transaction(void);
+
+static void cbob_spi_init_timer(void);
+static void cbob_spi_shutdown_timer(void);
+
 #define TIMER IMX_TIM2_BASE
 #define TIMER_IRQ TIM2_INT
 static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
-static int cbob_spi_current_transaction;
-static int cbob_spi_do_transaction(void);
-
-static void cbob_spi_init_timer_regs(void);
-static void cbob_spi_init_spi_regs(void);
+static void cbob_spi_init_spi(void);
 static unsigned int spi_exchange_data(unsigned int dataTx);
 
 void cbob_spi_init()
 {
-  cbob_spi_init_spi_regs();
-  cbob_spi_init_timer_regs();
+  cbob_spi_init_spi();
+  cbob_spi_init_timer();
     
   sema_init(&cbob_spi, 1);
 }
@@ -143,9 +145,10 @@ static int cbob_spi_do_transaction()
 
 void cbob_spi_exit(void) 
 {
+  cbob_spi_shutdown_timer();
 }
 
-static void cbob_spi_init_timer_regs(void)
+static void cbob_spi_init_timer(void)
 {
   IMX_TCTL(TIMER) = TCTL_SWR; // reset timer
   udelay(100);
@@ -156,6 +159,12 @@ static void cbob_spi_init_timer_regs(void)
   IMX_TCMP(TIMER) = 40; // 30.52 us per tick * 40 ticks = 1221 us
   
   request_irq(TIMER_IRQ, cbob_timer_interrupt, 0, "CBOB", 0);
+}
+
+static void cbob_spi_shutdown_timer(void)
+{
+  IMX_TCTL(TIMER) &= ~TCTL_TEN; // stop timer
+  free_irq(TIMER_IRQ, 0);
 }
 
 static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
@@ -199,7 +208,7 @@ static unsigned int spi_exchange_data(unsigned int dataTx)
   return SSP_RX_REG(SPI_CHAN);
 }
   
-static void cbob_spi_init_spi_regs(void) 
+static void cbob_spi_init_spi(void) 
 {
   // hardware init
   // map GPIO ports appropriately
