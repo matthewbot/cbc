@@ -7,6 +7,16 @@
 
 void cbob_spi_init(void);
 void cbob_spi_exit(void);
-int  cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, short incount);
+
+struct cbob_message {
+  short cmd;
+  short *outbuf;
+  short outcount;
+  short *inbuf;
+  short incount;
+};
+
+int cbob_spi_sendmessage(struct cbob_message *msg);
+int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, short incount);
 
 #endif

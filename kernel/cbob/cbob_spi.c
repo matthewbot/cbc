@@ -33,68 +33,144 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 
-#define CBOB_TRANSACTION_DELAY 1200
-
 static struct semaphore cbob_spi;
 
-static void cbob_spi_init_regs(void);
+static struct cbob_message *cbob_spi_current_message;
+static short cbob_spi_current_cboblength;
+DECLARE_COMPLETION(cbob_spi_message_completion);
+
+#define CBOB_TRANSACTION_DELAY 1200
+enum {
+  CBOB_TRANSACTION_CHUMBYHEADER,
+  CBOB_TRANSACTION_CHUMBYDATA,
+  CBOB_TRANSACTION_CBOBLENGTH,
+  CBOB_TRANSACTION_CBOBDATA,
+  CBOB_TRANSACTION_END
+};
+
+#define TIMER IMX_TIM2_BASE
+#define TIMER_IRQ TIM2_INT
+static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+
+static int cbob_spi_current_transaction;
+static int cbob_spi_do_transaction(void);
+
+static void cbob_spi_init_timer_regs(void);
+static void cbob_spi_init_spi_regs(void);
 static unsigned int spi_exchange_data(unsigned int dataTx);
 
 void cbob_spi_init()
 {
-  cbob_spi_init_regs();
+  cbob_spi_init_spi_regs();
+  cbob_spi_init_timer_regs();
     
   sema_init(&cbob_spi, 1);
 }
 
-inline static void cbob_spi_wait_transaction(void)
-{
-	udelay(CBOB_TRANSACTION_DELAY);
-}
-
 int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, short incount)
 {
-  int i;
-  short header[3], replycount = 0;
-  header[0] = 0xCB07;
-  header[1] = cmd;
-  header[2] = (outcount > 0 ? outcount : 1);
+  struct cbob_message msg;
+  msg.cmd = cmd;
+  msg.outbuf = outbuf;
+  msg.outcount = outcount;
+  msg.inbuf = inbuf;
+  msg.incount = incount;
   
+  return cbob_spi_sendmessage(&msg);
+}
+
+int cbob_spi_sendmessage(struct cbob_message *msg)
+{
   if(down_interruptible(&cbob_spi))
     return -EINTR;
   
-  for(i = 0;i < 3;i++)
-    spi_exchange_data(header[i]);
-  cbob_spi_wait_transaction();
+  cbob_spi_current_message = msg;
+  cbob_spi_current_transaction = 0;
   
-  if(outcount == 0)
-    spi_exchange_data(0);
-  else {
-    for(i = 0;i < outcount;i++)
-      spi_exchange_data(outbuf[i]);
-  }
-  cbob_spi_wait_transaction();
-  
-  replycount = spi_exchange_data(0);
-  spi_exchange_data(0);
-  cbob_spi_wait_transaction();
-  
-  for(i = 0;i < replycount;i++) {
-    if(i < incount)
-      inbuf[i] = spi_exchange_data(0);
-    else 
-      spi_exchange_data(0);
-  }
-  cbob_spi_wait_transaction();
+  IMX_TCTL(TIMER) |= TCTL_TEN; // enable timer
+  wait_for_completion(&cbob_spi_message_completion);
   
   up(&cbob_spi);
   return 1;
 }
 
+static int cbob_spi_do_transaction()
+{
+  int i;
+  struct cbob_message *msg = cbob_spi_current_message;
+ 
+  if (cbob_spi_current_transaction == CBOB_TRANSACTION_END)
+    return 1;
+  
+  switch (cbob_spi_current_transaction) {
+    case CBOB_TRANSACTION_CHUMBYHEADER: {
+      spi_exchange_data(0xCB07);
+      spi_exchange_data(msg->cmd);
+      spi_exchange_data(msg->outcount > 0 ? msg->outcount : 1);
+      break;
+    }
+    
+    case CBOB_TRANSACTION_CHUMBYDATA:
+      if(msg->outcount == 0)
+        spi_exchange_data(0);
+      else {
+        for(i = 0;i < msg->outcount;i++)
+         spi_exchange_data(msg->outbuf[i]);
+      }
+      break;
+      
+    case CBOB_TRANSACTION_CBOBLENGTH:
+      cbob_spi_current_cboblength = spi_exchange_data(0);
+      spi_exchange_data(0);
+      break;
+      
+    case CBOB_TRANSACTION_CBOBDATA:
+      for(i = 0;i < cbob_spi_current_cboblength;i++) {
+        if(i < msg->incount)
+          msg->inbuf[i] = spi_exchange_data(0);
+        else 
+          spi_exchange_data(0);
+      }
+      break;
+  }
+  
+  if (++cbob_spi_current_transaction == CBOB_TRANSACTION_END) {
+    complete(&cbob_spi_message_completion);
+    return 1;
+  } else
+    return 0;
+}
+
 void cbob_spi_exit(void) 
 {
 }
+
+static void cbob_spi_init_timer_regs(void)
+{
+  IMX_TCTL(TIMER) = TCTL_SWR; // reset timer
+  udelay(100);
   
+  IMX_TCTL(TIMER) = TCTL_CC // counter clear when timer is disabled
+                  | TCTL_COMPEN // enable compare mode
+                  | TCTL_CLK_32; // use 32khz clock source
+  IMX_TCMP(TIMER) = 40; // 30.52 us per tick * 40 ticks = 1221 us
+  
+  request_irq(TIMER_IRQ, cbob_timer_interrupt, 0, "CBOB", 0);
+}
+
+static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+{
+  if (!(IMX_TSTAT(TIMER) & TSTAT_COMP))
+    return IRQ_NONE;
+
+  IMX_TSTAT(TIMER) = TSTAT_CAPT | TSTAT_COMP; // clear interrupts
+  
+  if (cbob_spi_do_transaction()) // if transaction finished
+    IMX_TCTL(TIMER) &= ~TCTL_TEN; // shut off timer
+    
+  return IRQ_HANDLED;
+}
+
 /* Most of the following code was taken from chumby_accel.c
  * Thanks go to Chumby for providing this :)
  */
@@ -123,7 +199,7 @@ static unsigned int spi_exchange_data(unsigned int dataTx)
   return SSP_RX_REG(SPI_CHAN);
 }
   
-static void cbob_spi_init_regs(void) 
+static void cbob_spi_init_spi_regs(void) 
 {
   // hardware init
   // map GPIO ports appropriately
