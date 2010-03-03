@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/jiffies.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/hardware.h>
@@ -36,6 +37,8 @@
 #define CBOB_TRANSACTION_DELAY 1200
 
 static struct semaphore cbob_spi;
+
+unsigned long cbob_spi_last_message;
 
 static int cbob_spi_desync;
 static void cbob_spi_update_desync(short replycount, short incount);
@@ -66,6 +69,10 @@ int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, sho
   if(down_interruptible(&cbob_spi))
     return -EINTR;
   
+  // if we are starting a new transaction less than a transaction delay after the previous one
+  if (time_before(jiffies, cbob_spi_last_message + usecs_to_jiffies(CBOB_TRANSACTION_DELAY)))
+    cbob_spi_wait_transaction(); // we need to insert a transaction delay before starting
+  
   for(i = 0;i < 3;i++)
     spi_exchange_data(header[i]);
   cbob_spi_wait_transaction();
@@ -89,8 +96,8 @@ int cbob_spi_message(short cmd, short *outbuf, short outcount, short *inbuf, sho
     else 
       spi_exchange_data(0);
   }
-  cbob_spi_wait_transaction();
   
+  cbob_spi_last_message = jiffies;
   up(&cbob_spi);
   return 1;
 }
