@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/jiffies.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/hardware.h>
@@ -35,6 +36,7 @@
 
 static struct semaphore cbob_spi;
 
+unsigned long cbob_spi_last_message;
 static struct cbob_message *cbob_spi_current_message;
 static short cbob_spi_current_cboblength;
 DECLARE_COMPLETION(cbob_spi_message_completion);
@@ -48,21 +50,26 @@ enum {
   CBOB_TRANSACTION_END
 };
 
+static int cbob_spi_current_transaction;
+static int cbob_spi_do_transaction(void);
+
+static int cbob_spi_desync;
+static void cbob_spi_update_desync(short replycount, short incount);
+
+static void cbob_spi_init_timer(void);
+static void cbob_spi_shutdown_timer(void);
+
 #define TIMER IMX_TIM2_BASE
 #define TIMER_IRQ TIM2_INT
 static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
-static int cbob_spi_current_transaction;
-static int cbob_spi_do_transaction(void);
-
-static void cbob_spi_init_timer_regs(void);
-static void cbob_spi_init_spi_regs(void);
+static void cbob_spi_init_spi(void);
 static unsigned int spi_exchange_data(unsigned int dataTx);
 
 void cbob_spi_init()
 {
-  cbob_spi_init_spi_regs();
-  cbob_spi_init_timer_regs();
+  cbob_spi_init_spi();
+  cbob_spi_init_timer();
     
   sema_init(&cbob_spi, 1);
 }
@@ -86,10 +93,15 @@ int cbob_spi_sendmessage(struct cbob_message *msg)
   
   cbob_spi_current_message = msg;
   cbob_spi_current_transaction = 0;
+
+  // if enough time has passed since the last transaction
+  if (time_after(jiffies, cbob_spi_last_message + usecs_to_jiffies(CBOB_TRANSACTION_DELAY)))
+    cbob_spi_do_transaction(); // go ahead and do one now to save time
   
   IMX_TCTL(TIMER) |= TCTL_TEN; // enable timer
   wait_for_completion(&cbob_spi_message_completion);
   
+  cbob_spi_last_message = jiffies;
   up(&cbob_spi);
   return 1;
 }
@@ -122,6 +134,7 @@ static int cbob_spi_do_transaction()
     case CBOB_TRANSACTION_CBOBLENGTH:
       cbob_spi_current_cboblength = spi_exchange_data(0);
       spi_exchange_data(0);
+      cbob_spi_update_desync(cbob_spi_current_cboblength, msg->incount);
       break;
       
     case CBOB_TRANSACTION_CBOBDATA:
@@ -143,9 +156,10 @@ static int cbob_spi_do_transaction()
 
 void cbob_spi_exit(void) 
 {
+  cbob_spi_shutdown_timer();
 }
 
-static void cbob_spi_init_timer_regs(void)
+static void cbob_spi_init_timer(void)
 {
   IMX_TCTL(TIMER) = TCTL_SWR; // reset timer
   udelay(100);
@@ -156,6 +170,12 @@ static void cbob_spi_init_timer_regs(void)
   IMX_TCMP(TIMER) = 40; // 30.52 us per tick * 40 ticks = 1221 us
   
   request_irq(TIMER_IRQ, cbob_timer_interrupt, 0, "CBOB", 0);
+}
+
+static void cbob_spi_shutdown_timer(void)
+{
+  IMX_TCTL(TIMER) &= ~TCTL_TEN; // stop timer
+  free_irq(TIMER_IRQ, 0);
 }
 
 static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
@@ -169,6 +189,20 @@ static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *r
     IMX_TCTL(TIMER) &= ~TCTL_TEN; // shut off timer
     
   return IRQ_HANDLED;
+}
+
+static void cbob_spi_update_desync(short replycount, short incount) {
+  int desync = (replycount > incount || replycount <= 0);
+  
+  if (desync == cbob_spi_desync)
+    return;
+    
+  cbob_spi_desync = desync;
+  
+  if (desync)
+    printk(KERN_WARNING "CBOB desync detected. replycount is %hd, incount is %hd\n", replycount, incount);
+  else
+    printk(KERN_NOTICE "CBOB resynced.\n");
 }
 
 /* Most of the following code was taken from chumby_accel.c
@@ -199,7 +233,7 @@ static unsigned int spi_exchange_data(unsigned int dataTx)
   return SSP_RX_REG(SPI_CHAN);
 }
   
-static void cbob_spi_init_spi_regs(void) 
+static void cbob_spi_init_spi(void) 
 {
   // hardware init
   // map GPIO ports appropriately

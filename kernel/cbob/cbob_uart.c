@@ -47,7 +47,6 @@ static struct tty_operations cbob_uart_ops = {
 };
 
 struct cbob_uart *cbob_uarts[CBOB_UART_MINORS];
-struct workqueue_struct *cbob_uart_workqueue;
 //static unsigned char cbob_uart_packet[2][CBOB_UART_PACKET_SIZE];
 
 static int cbob_uart_open(struct tty_struct *tty, struct file *filp)
@@ -147,7 +146,7 @@ static int  cbob_uart_write_room(struct tty_struct *tty)
 irqreturn_t cbob_uart_handler(int irq, void *data, struct pt_regs *regs)
 {
 	
-	queue_work(cbob_uart_workqueue, &cbob_uart_fetch);
+	schedule_work(&cbob_uart_fetch);
 	
   return IRQ_HANDLED;
 }
@@ -221,8 +220,6 @@ int cbob_uart_init(void)
   	cbob_uarts[i] = NULL;
   }
  
- 	cbob_uart_workqueue = create_singlethread_workqueue("CBOB UART");
- 
  	imx_gpio_mode(GPIO_PORTD | 27 | GPIO_IN | GPIO_GPIO | GPIO_IRQ_RISING);
   request_irq(IRQ_GPIOD(27), cbob_uart_handler, 0, "CBOB", 0);
   
@@ -249,8 +246,5 @@ void cbob_uart_exit(void)
 			cbob_uarts[i] = NULL;
 		}
 	}
-	
-	flush_workqueue(cbob_uart_workqueue);
-	destroy_workqueue(cbob_uart_workqueue);
 }
 
