@@ -34,7 +34,7 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 
-#define CBOB_TRANSACTION_DELAY 1200
+#define CBOB_TRANSACTION_DELAY 1500
 
 static struct semaphore cbob_spi;
 
