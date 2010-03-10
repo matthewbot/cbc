@@ -41,7 +41,8 @@ static struct cbob_message *cbob_spi_current_message;
 static short cbob_spi_current_cboblength;
 DECLARE_COMPLETION(cbob_spi_message_completion);
 
-#define CBOB_TRANSACTION_DELAY 1200
+#define CBOB_TRANSACTION_DELAY 1500
+
 enum {
   CBOB_TRANSACTION_CHUMBYHEADER,
   CBOB_TRANSACTION_CHUMBYDATA,
