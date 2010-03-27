@@ -32,12 +32,13 @@ filesystem/upgrade/ext2.tgz
 filesystem/upgrade/ext2.ko
 filesystem/upgrade/block_probe
 filesystem/upgrade/FIRMWARE_VERSION
+filesystem/upgrade/tmp
 filesystem/kiss-vfat/
 filesystem/kiss-ext2/
 filesystem/ext2/qt/
 filesystem/ext2/gcc/
-filesystem/ext2/CBC_Qt-4.4.3-Mini.tar.bz2
-filesystem/ext2/CBC_GCC-4.1.1-Mini.tar.bz2
+filesystem/ext2/CBC_Qt-4.5.2-Mini.tar.bz2
+filesystem/ext2/CBC_GCC-4.3.2-Mini.tar.bz2
 cbcui/cbcui
 cbcui/build/
 cbcui/Makefile
@@ -96,3 +97,5 @@ kernel/linux-2.6.16-chumby-1.6.0.tar.gz
 kernel/linux-2.6.16-chumby-1.6.0/
 kernel/cbob/.cbob.mod.o.cmd
 kernel/cbob/.cbob.ko.cmd
+
+userhook0
