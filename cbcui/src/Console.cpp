@@ -87,7 +87,13 @@ void Console::updateText(QString text)
         this->manageSound();
         text.remove("\a");
     }
-
+    
+    int clearindex = text.lastIndexOf((QChar)12);
+    if (clearindex != -1) {
+        ui_console->setPlainText("");
+        text.remove(0, clearindex+1);
+    }
+    
     ui_console->insertPlainText(text);
     ui_console->verticalScrollBar()->triggerAction(QScrollBar::SliderToMaximum);
 }
