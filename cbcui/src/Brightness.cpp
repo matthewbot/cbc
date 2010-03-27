@@ -39,8 +39,8 @@ Brightness::Brightness(QWidget *parent) :
 {
     setupUi(this);
 
-    m_dimAfter = m_settings.value(DIM_AFTER_KEY, 0).toInt();
-    m_brightness = m_settings.value(BRIGHTNESS_KEY, 0).toInt();
+    m_dimAfter = m_settings.value(DIM_AFTER_KEY, 5).toInt();
+    m_brightness = m_settings.value(BRIGHTNESS_KEY, 10).toInt();
 
     blocked(true); // Prevents us from registering these events
     ui_dimCombo->addItem("Never");      // 0
