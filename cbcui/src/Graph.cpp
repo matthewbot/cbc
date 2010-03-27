@@ -33,6 +33,7 @@
 #define DIGSCALE        2
 #define ANGSCALE        1024
 #define ANGOFF          512
+#define MINREFRESH      10
 
 Graph::Graph(QWidget *parent) : Page(parent)
 {
@@ -80,14 +81,8 @@ void Graph::on_ui_delTimeLine_selectionChanged()
 
     ms = user_keypad.getValue();
 
-    if(ms < 100){
-        QMessageBox::warning(this,
-                             "Input Error",
-                             "Value must be greater than 100ms\n",
-                             QMessageBox::Ok,
-                             QMessageBox::NoButton);
-        ms = 100;
-    }
+    if(ms < MINREFRESH)
+        ms = MINREFRESH;
 
     ui_delTimeLine->setStyleSheet("QLineEdit#ui_delTimeLine{background-color:white}");
     ui_delTimeLine->setText(QString::number(ms));
