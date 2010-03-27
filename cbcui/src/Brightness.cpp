@@ -32,7 +32,7 @@
 
 Brightness::Brightness(QWidget *parent) :
     Page(parent),
-    m_settings("/mnt/user/brightness.config", QSettings::IniFormat),
+    m_settings("/mnt/user/config/brightness.config", QSettings::IniFormat),
     m_mouseUpdate(this),
     m_dimmer(this)
 {
