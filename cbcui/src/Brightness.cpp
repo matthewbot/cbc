@@ -68,12 +68,16 @@ void Brightness::on_ui_dimCombo_currentIndexChanged(int i)
     qWarning() << "Current Index: " << i;
     m_settings.setValue(DIM_AFTER_KEY, i);
     m_settings.sync();
-            if(i == 1) m_dimmer.setInterval(MINUTE / 6);
-    else    if(i == 2) m_dimmer.setInterval(MINUTE / 2);
-    else    if(i == 3) m_dimmer.setInterval(MINUTE);
-    else    if(i == 4) m_dimmer.setInterval(MINUTE * 5);
-    else    if(i == 5) m_dimmer.setInterval(MINUTE * 10);
-    m_dimmer.start();
+    
+    static const int interval[] = {
+        MINUTE/6, MINUTE/2, MINUTE, MINUTE*5, MINUTE*10
+    };
+    
+    if (i > 0 && i <= 5) {
+        m_dimmer.setInterval(interval[i-1]);
+        m_dimmer.start();
+    } else
+        qWarning() << "Bad Index: " << i;
     m_dimAfter = i;
 }
 
@@ -123,19 +127,11 @@ void Brightness::blocked(bool a)
 
 char Brightness::getHex(int i)
 {
-    char c = 0;
-            if(i == 10) c = 'F';
-    else    if(i == 9)  c = 'E';
-    else    if(i == 8)  c = 'D';
-    else    if(i == 7)  c = 'C';
-    else    if(i == 6)  c = 'B';
-    else    if(i == 5)  c = 'A';
-    else    if(i == 4)  c = '9';
-    else    if(i == 3)  c = '8';
-    else    if(i == 2)  c = '7';
-    else    if(i == 1)  c = '6';
-    else    c = 'F'; // Invalid
-    return c;
+    static const char hex[] = "6789ABCDEF";
+    if (i > 0 && i <= 10)
+        return hex[i-1];
+    else
+        return 'F';
 }
 
 void Brightness::setBrightness(int i)
