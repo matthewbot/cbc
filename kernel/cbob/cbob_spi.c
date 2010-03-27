@@ -168,7 +168,7 @@ static void cbob_spi_init_timer(void)
   IMX_TCTL(TIMER) = TCTL_CC // counter clear when timer is disabled
                   | TCTL_COMPEN // enable compare mode
                   | TCTL_CLK_32; // use 32khz clock source
-  IMX_TCMP(TIMER) = 40; // 30.52 us per tick * 40 ticks = 1221 us
+  IMX_TCMP(TIMER) = (int)(CBOB_TRANSACTION_DELAY / 30.52); // 30.52 us per tick
   
   request_irq(TIMER_IRQ, cbob_timer_interrupt, 0, "CBOB", 0);
 }
