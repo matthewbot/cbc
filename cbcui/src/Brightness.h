@@ -55,7 +55,6 @@ private:
     int m_dimAfter;
     QTimer m_mouseUpdate;
     QTimer m_dimmer;
-    bool m_neverDim;
     bool m_dimmed;
     QPoint m_lastMousePos;
 };

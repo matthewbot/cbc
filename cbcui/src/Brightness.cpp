@@ -34,8 +34,7 @@ Brightness::Brightness(QWidget *parent) :
     Page(parent),
     m_settings("/mnt/user/brightness.config", QSettings::IniFormat),
     m_mouseUpdate(this),
-    m_dimmer(this),
-    m_neverDim(false)
+    m_dimmer(this)
 {
     setupUi(this);
 
@@ -69,19 +68,18 @@ void Brightness::on_ui_dimCombo_currentIndexChanged(int i)
     qWarning() << "Current Index: " << i;
     m_settings.setValue(DIM_AFTER_KEY, i);
     m_settings.sync();
-    m_neverDim = false;
             if(i == 1) m_dimmer.setInterval(MINUTE / 6);
     else    if(i == 2) m_dimmer.setInterval(MINUTE / 2);
     else    if(i == 3) m_dimmer.setInterval(MINUTE);
     else    if(i == 4) m_dimmer.setInterval(MINUTE * 5);
     else    if(i == 5) m_dimmer.setInterval(MINUTE * 10);
-    else    m_neverDim = true; // Never or Invalid
     m_dimmer.start();
     m_dimAfter = i;
 }
 
 void Brightness::on_ui_brightness_valueChanged(int i)
 {
+    qWarning() << "Current brightness: " << i;
     if(m_blocked) return;
     setBrightness(i);
     m_settings.setValue(BRIGHTNESS_KEY, i);
@@ -102,7 +100,7 @@ void Brightness::mouseUpdateChecker()
             setBrightness(m_brightness);
             m_mouseUpdate.start(5000);
         }
-        if(!m_neverDim) m_dimmer.start();
+        if(m_dimAfter > 0) m_dimmer.start();
     }
     m_lastMousePos = newMousePos;
 
