@@ -32,9 +32,9 @@ About::About(QWidget *parent) : Page(parent)
     QFile swVersion("/mnt/usb/FIRMWARE_VERSION");
 
     if(osVersion.open(QIODevice::ReadOnly | QIODevice::Text))
-        ui_OSVersion->setText(osVersion.readAll());
+        ui_OSVersion->setText(osVersion.readAll().trimmed()); // remove the newline
     if(swVersion.open(QIODevice::ReadOnly | QIODevice::Text))
-        ui_SWVersion->setText(swVersion.readAll());
+        ui_SWVersion->setText(swVersion.readLine().trimmed());
 
     short version = 0;
     int fd = ::open("/dev/cbc/status", O_RDONLY);
