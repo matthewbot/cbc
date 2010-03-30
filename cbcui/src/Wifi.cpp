@@ -18,26 +18,12 @@
  *  in the project root.  If not, see <http://www.gnu.org/licenses/>.     *
  **************************************************************************/
 
-#ifndef __UTILITIES_H__
-#define __UTILITIES_H__
+// Author: Matthew Thompson (matthewbot@gmail.com)
 
-#include "ui_Utilities.h"
-#include "Page.h"
-
-#include "CreateStatus.h"
 #include "Wifi.h"
 
-class Utilities : public Page, private Ui::Utilities
-{
-    Q_OBJECT
+Wifi::Wifi(QWidget *parent) : Page(parent) {
+  setupUi(this);
+}
+Wifi::~Wifi() { }
 
-public:
-    Utilities(QWidget *parent = 0);
-    ~Utilities();
-
-private:
-    CreateStatus m_createStatus;
-    Wifi m_wifi;
-};
-
-#endif
