@@ -23,6 +23,7 @@
 #ifndef __WIFI_H__
 #define __WIFI_H__
 
+#include <QStringList>
 #include "ui_Wifi.h"
 #include "Page.h"
 #include "WirelessAdapter.h"
@@ -36,6 +37,7 @@ public:
   
 public slots:
   void wireless_statusChanged(WirelessAdapterStatus status);
+  void wireless_scanComplete(QStringList networks);
   
 private:
   WirelessAdapter wireless;

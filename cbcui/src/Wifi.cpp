@@ -25,8 +25,12 @@
 
 Wifi::Wifi(QWidget *parent) : Page(parent) {
   setupUi(this);
+  wireless_statusChanged(NOT_DETECTED);
+  
+  QObject::connect(ui_refreshButton, SIGNAL(pressed()), &wireless, SLOT(startScan()));
   
   QObject::connect(&wireless, SIGNAL(statusChanged(WirelessAdapterStatus)), this, SLOT(wireless_statusChanged(WirelessAdapterStatus)));
+  QObject::connect(&wireless, SIGNAL(scanComplete(QStringList)), this, SLOT(wireless_scanComplete(QStringList)));
 }
 Wifi::~Wifi() { }
 
@@ -34,6 +38,7 @@ void Wifi::wireless_statusChanged(WirelessAdapterStatus status) {
   switch (status) {
     case NOT_DETECTED:
       ui_adapterLabel->setText("No wireless adapter detected");
+      ui_networkList->clear();
       break;
       
     case NOT_UP:
@@ -43,6 +48,18 @@ void Wifi::wireless_statusChanged(WirelessAdapterStatus status) {
     case NOT_CONNECTED:
       ui_adapterLabel->setText("Adapter OK! MAC: " + wireless.getMACAddress());
       break;
+      
+    case SCANNING:
+      ui_networkList->clear();
+      ui_networkList->addItem("Scanning...");
+      break;
   }
+}
+
+void Wifi::wireless_scanComplete(QStringList networks) {
+  ui_networkList->clear();
+  
+  for (int i=0; i < networks.size(); ++i)
+    ui_networkList->addItem(networks[i]);
 }
 

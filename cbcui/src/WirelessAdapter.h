@@ -27,12 +27,14 @@
 #include <QThread>
 #include <QMetaType>
 #include <QString>
+#include <QStringList>
 
 // Qt's stupid signal/slot system wouldn't work with this inside the class :/
 enum WirelessAdapterStatus {
   NOT_DETECTED,
   NOT_UP,
   NOT_CONNECTED,
+  SCANNING,
   CONNECTING,
   CONNECTED
 };
@@ -48,18 +50,26 @@ public:
   inline WirelessAdapterStatus getStatus() { return m_status; }
   inline const QString &getMACAddress() { return m_mac; }
   
+public slots:
+  void startScan();
+  
 signals:
   void statusChanged(WirelessAdapterStatus status);  
+  void scanComplete(QStringList networks);
   
 private:
   virtual void run();
   void updateStatus();
   void up();
- 
- 
+  void doScan();
+
+  bool m_startscan;
+
   void setStatus(WirelessAdapterStatus WirelessAdapaterStatus);
   WirelessAdapterStatus m_status;
+  
   QString m_mac;
+  QStringList m_networks;
 };
 
 #endif
