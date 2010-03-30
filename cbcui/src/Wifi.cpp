@@ -21,9 +21,28 @@
 // Author: Matthew Thompson (matthewbot@gmail.com)
 
 #include "Wifi.h"
+#include <QDebug>
 
 Wifi::Wifi(QWidget *parent) : Page(parent) {
   setupUi(this);
+  
+  QObject::connect(&wireless, SIGNAL(statusChanged(WirelessAdapterStatus)), this, SLOT(wireless_statusChanged(WirelessAdapterStatus)));
 }
 Wifi::~Wifi() { }
+
+void Wifi::wireless_statusChanged(WirelessAdapterStatus status) {
+  switch (status) {
+    case NOT_DETECTED:
+      ui_adapterLabel->setText("No wireless adapter detected");
+      break;
+      
+    case NOT_UP:
+      ui_adapterLabel->setText("Starting wireless adapter...");
+      break;
+      
+    case NOT_CONNECTED:
+      ui_adapterLabel->setText("Adapter OK! MAC: " + wireless.getMACAddress());
+      break;
+  }
+}
 

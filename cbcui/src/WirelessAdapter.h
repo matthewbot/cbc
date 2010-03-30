@@ -20,25 +20,46 @@
 
 // Author: Matthew Thompson (matthewbot@gmail.com)
 
-#ifndef __WIFI_H__
-#define __WIFI_H__
+#ifndef __WIRELESSADAPTER_H__
+#define __WIRELESSADAPTER_H__
 
-#include "ui_Wifi.h"
-#include "Page.h"
-#include "WirelessAdapter.h"
+#include <QObject>
+#include <QThread>
+#include <QMetaType>
+#include <QString>
 
-class Wifi : public Page, private Ui::Wifi
-{
-  Q_OBJECT
+// Qt's stupid signal/slot system wouldn't work with this inside the class :/
+enum WirelessAdapterStatus {
+  NOT_DETECTED,
+  NOT_UP,
+  NOT_CONNECTED,
+  CONNECTING,
+  CONNECTED
+};
+Q_DECLARE_METATYPE(WirelessAdapterStatus)
+
+class WirelessAdapter : public QThread {
+Q_OBJECT
+
 public:
-  Wifi(QWidget *parent = 0);
-  virtual ~Wifi();
+  WirelessAdapter();
+  ~WirelessAdapter();
   
-public slots:
-  void wireless_statusChanged(WirelessAdapterStatus status);
+  inline WirelessAdapterStatus getStatus() { return m_status; }
+  inline const QString &getMACAddress() { return m_mac; }
+  
+signals:
+  void statusChanged(WirelessAdapterStatus status);  
   
 private:
-  WirelessAdapter wireless;
+  virtual void run();
+  void updateStatus();
+  void up();
+ 
+ 
+  void setStatus(WirelessAdapterStatus WirelessAdapaterStatus);
+  WirelessAdapterStatus m_status;
+  QString m_mac;
 };
 
 #endif

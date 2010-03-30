@@ -49,7 +49,8 @@ HEADERS += src/MainWindow.h \
     src/SerialPort.h \
     src/SerialServer.h \
     src/Brightness.h \
-    src/Wifi.h
+    src/Wifi.h \
+    src/WirelessAdapter.h
 FORMS += ui/MainWindow.ui \
     ui/MainMenu.ui \
     ui/Programs.ui \
@@ -104,7 +105,8 @@ SOURCES += src/main.cpp \
     src/SerialPort.cpp \
     src/SerialServer.cpp \
     src/Brightness.cpp \
-    src/Wifi.cpp
+    src/Wifi.cpp \
+    src/WirelessAdapter.cpp
 
 # Vision
 FORMS += src/vision/AdjustColorWidget.ui
