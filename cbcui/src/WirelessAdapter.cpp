@@ -100,9 +100,9 @@ void WirelessAdapter::updateStatus()
   QProcess iwconfig;
   iwconfig.start("iwconfig rausb0");
   iwconfig.waitForFinished();
-  out = iwconfig.readAllStandardOutput();
+  QString iwout = iwconfig.readAllStandardOutput();
   
-  if (essid_regexp.indexIn(out) != -1)
+  if (essid_regexp.indexIn(iwout) != -1)
     m_ssid = essid_regexp.cap(1);
   else 
     m_ssid = "";
@@ -112,7 +112,18 @@ void WirelessAdapter::updateStatus()
     return;
   }
   
-  setStatus(OBTAINING_IP);
+  static const QRegExp ip_regexp("inet addr:(\\S+)");
+  if (ip_regexp.indexIn(out) != -1)
+    m_ip = ip_regexp.cap(1);
+  else
+    m_ip = "";
+  
+  if (m_ip.length() == 0) {
+    setStatus(NOT_CONNECTED);
+    return;
+  }
+  
+  setStatus(CONNECTED);
 }
 
 void WirelessAdapter::doScan() {
@@ -147,22 +158,36 @@ void WirelessAdapter::doConnect(const QString &ssid) {
   
   int i;
   for (i=0;i<6;i++) {
-    QProcess::execute("iwpriv rausb0 set SSID=" + ssid);
-    QThread::msleep(500);
-    
-    QProcess iwconfig;
+    QProcess iwconfig; // check first, we may already be associated
     iwconfig.start("iwconfig rausb0");
     iwconfig.waitForFinished();
     QString out = iwconfig.readAllStandardOutput();
     
     if (essid_regexp.indexIn(out) != -1 && essid_regexp.cap(1) == ssid) {
       m_ssid = ssid;
-      setStatus(OBTAINING_IP);
+      doObtainIP();
       return;
     }
+    
+    QProcess::execute("iwpriv rausb0 set SSID=" + ssid);
+    QThread::msleep(500);
   }
   
   setStatus(NOT_CONNECTED);
+}
+
+void WirelessAdapter::doObtainIP() {
+  setStatus(OBTAINING_IP);
+  QProcess::execute("killall udhcpc");
+  
+  QProcess udhcpc;
+  udhcpc.start("udhcpc -q -f -n -i rausb0");
+  udhcpc.waitForFinished();
+  if (udhcpc.exitCode() == 0)
+    setStatus(CONNECTED);
+  else {
+    setStatus(NOT_CONNECTED);
+  }
 }
 
 void WirelessAdapter::setStatus(WirelessAdapterStatus status) {

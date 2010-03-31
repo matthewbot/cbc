@@ -65,12 +65,19 @@ void Wifi::wireless_statusChanged(WirelessAdapterStatus status) {
       
     case CONNECTING:
       ui_adapterLabel->setText("Connecting...");
+      ui_ssidLabel->setText("Connecting...");
       break;
       
     case OBTAINING_IP:
-      ui_adapterLabel->setText("Connected");
+      ui_adapterLabel->setText("Obtaining IP...");
       ui_ssidLabel->setText(wireless.getSSID());
       ui_ipLabel->setText("Obtaining...");
+      break;
+      
+    case CONNECTED:
+      ui_adapterLabel->setText("Connected!");
+      ui_ssidLabel->setText(wireless.getSSID());
+      ui_ipLabel->setText(wireless.getIP());
       break;
   }
 }

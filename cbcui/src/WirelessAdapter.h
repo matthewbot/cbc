@@ -51,6 +51,7 @@ public:
   inline WirelessAdapterStatus getStatus() { return m_status; }
   inline const QString &getMACAddress() { return m_mac; }
   inline QString getSSID() { return m_ssid; }
+  inline QString getIP() { return m_ip; }
   
 public slots:
   void startScan();
@@ -66,6 +67,7 @@ private:
   void up();
   void doScan();
   void doConnect(const QString &ssid);
+  void doObtainIP();
 
   bool m_startscan;
   bool m_startconnect; QString m_connectssid;
@@ -76,6 +78,7 @@ private:
   QString m_mac;
   QStringList m_networks;
   QString m_ssid;
+  QString m_ip;
 };
 
 #endif
