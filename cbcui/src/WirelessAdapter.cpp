@@ -35,22 +35,38 @@ void WirelessAdapter::startScan() {
   m_startscan = true;
 }
 
+void WirelessAdapter::startConnect(QString ssid) {
+  m_connectssid = ssid;
+  m_startconnect = true;
+}
+
 void WirelessAdapter::run() {
   while (true) {
     QThread::msleep(1000);
     
     updateStatus();
     
-    if (m_status == NOT_UP)
+    if (m_status == NOT_DETECTED)
+      continue;
+    else if (m_status == NOT_UP) {
       up();
-    else if (m_status == NOT_CONNECTED || m_status == CONNECTED) {
-      if (m_startscan) {
-        doScan();
-        m_startscan = false;
-      }
+      continue;
+    }
+      
+    if (m_startscan) {
+      doScan();
+      m_startscan = false;
+    }
+    
+    if (m_startconnect) {
+      doConnect(m_connectssid);
+      m_startconnect = false;
     }
   }
 }
+
+// used in a few functions
+static const QRegExp essid_regexp("ESSID:\"(\\w+)\"");
 
 void WirelessAdapter::up() 
 {
@@ -81,7 +97,22 @@ void WirelessAdapter::updateStatus()
   else
     m_mac = "Unknown";
     
-  setStatus(NOT_CONNECTED);
+  QProcess iwconfig;
+  iwconfig.start("iwconfig rausb0");
+  iwconfig.waitForFinished();
+  out = iwconfig.readAllStandardOutput();
+  
+  if (essid_regexp.indexIn(out) != -1)
+    m_ssid = essid_regexp.cap(1);
+  else 
+    m_ssid = "";
+    
+  if (m_ssid.length() == 0) {
+    setStatus(NOT_CONNECTED);
+    return;
+  }
+  
+  setStatus(OBTAINING_IP);
 }
 
 void WirelessAdapter::doScan() {
@@ -93,8 +124,6 @@ void WirelessAdapter::doScan() {
   iwlist.waitForFinished();
   QString out = iwlist.readAllStandardOutput();
   
-  static const QRegExp essid_regexp("ESSID:\"([^\"]+)\"");
-  
   int pos=0;
   m_networks.clear();
   while ((pos = essid_regexp.indexIn(out, pos)) != -1) {
@@ -104,6 +133,36 @@ void WirelessAdapter::doScan() {
   
   scanComplete(m_networks);
   setStatus(prev_stat);
+}
+
+void WirelessAdapter::doConnect(const QString &ssid) {
+  setStatus(CONNECTING);
+  
+  /* For now, you must hardcode a WEP key here
+  QProcess::execute("iwpriv rausb0 set AuthMode=WEPAUTO");
+  QProcess::execute("iwpriv rausb0 set EncrypType=WEP");
+  QProcess::execute("iwpriv rausb0 set Key1=<<Insert your key>>");
+  For you WPA2 users, you'll have to fish it out of the chumby scripts :P
+  */
+  
+  int i;
+  for (i=0;i<6;i++) {
+    QProcess::execute("iwpriv rausb0 set SSID=" + ssid);
+    QThread::msleep(500);
+    
+    QProcess iwconfig;
+    iwconfig.start("iwconfig rausb0");
+    iwconfig.waitForFinished();
+    QString out = iwconfig.readAllStandardOutput();
+    
+    if (essid_regexp.indexIn(out) != -1 && essid_regexp.cap(1) == ssid) {
+      m_ssid = ssid;
+      setStatus(OBTAINING_IP);
+      return;
+    }
+  }
+  
+  setStatus(NOT_CONNECTED);
 }
 
 void WirelessAdapter::setStatus(WirelessAdapterStatus status) {

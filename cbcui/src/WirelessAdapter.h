@@ -36,6 +36,7 @@ enum WirelessAdapterStatus {
   NOT_CONNECTED,
   SCANNING,
   CONNECTING,
+  OBTAINING_IP,
   CONNECTED
 };
 Q_DECLARE_METATYPE(WirelessAdapterStatus)
@@ -49,9 +50,11 @@ public:
   
   inline WirelessAdapterStatus getStatus() { return m_status; }
   inline const QString &getMACAddress() { return m_mac; }
+  inline QString getSSID() { return m_ssid; }
   
 public slots:
   void startScan();
+  void startConnect(QString ssid);
   
 signals:
   void statusChanged(WirelessAdapterStatus status);  
@@ -62,14 +65,17 @@ private:
   void updateStatus();
   void up();
   void doScan();
+  void doConnect(const QString &ssid);
 
   bool m_startscan;
+  bool m_startconnect; QString m_connectssid;
 
   void setStatus(WirelessAdapterStatus WirelessAdapaterStatus);
   WirelessAdapterStatus m_status;
   
   QString m_mac;
   QStringList m_networks;
+  QString m_ssid;
 };
 
 #endif

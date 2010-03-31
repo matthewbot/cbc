@@ -34,11 +34,18 @@ Wifi::Wifi(QWidget *parent) : Page(parent) {
 }
 Wifi::~Wifi() { }
 
+void Wifi::on_ui_connectButton_pressed() {
+  QString ssid = ui_networkList->item(ui_networkList->currentRow())->text();
+  wireless.startConnect(ssid);
+}
+
 void Wifi::wireless_statusChanged(WirelessAdapterStatus status) {
   switch (status) {
     case NOT_DETECTED:
       ui_adapterLabel->setText("No wireless adapter detected");
       ui_networkList->clear();
+      ui_ssidLabel->setText("");
+      ui_ipLabel->setText("");
       break;
       
     case NOT_UP:
@@ -47,11 +54,23 @@ void Wifi::wireless_statusChanged(WirelessAdapterStatus status) {
       
     case NOT_CONNECTED:
       ui_adapterLabel->setText("Adapter OK! MAC: " + wireless.getMACAddress());
+      ui_ssidLabel->setText("");
+      ui_ipLabel->setText("");
       break;
       
     case SCANNING:
       ui_networkList->clear();
       ui_networkList->addItem("Scanning...");
+      break;
+      
+    case CONNECTING:
+      ui_adapterLabel->setText("Connecting...");
+      break;
+      
+    case OBTAINING_IP:
+      ui_adapterLabel->setText("Connected");
+      ui_ssidLabel->setText(wireless.getSSID());
+      ui_ipLabel->setText("Obtaining...");
       break;
   }
 }
