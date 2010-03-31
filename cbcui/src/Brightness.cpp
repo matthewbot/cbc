@@ -22,9 +22,6 @@
 
 #include "Brightness.h"
 
-#include <QDebug>
-
-
 #define DIM_AFTER_KEY   "Dim After"
 #define BRIGHTNESS_KEY  "Brightness"
 
@@ -65,7 +62,6 @@ Brightness::~Brightness()
 void Brightness::on_ui_dimCombo_currentIndexChanged(int i)
 {
     if(m_blocked) return;
-    qWarning() << "Current Index: " << i;
     m_settings.setValue(DIM_AFTER_KEY, i);
     m_settings.sync();
     
@@ -76,14 +72,12 @@ void Brightness::on_ui_dimCombo_currentIndexChanged(int i)
     if (i > 0 && i <= 5) {
         m_dimmer.setInterval(interval[i-1]);
         m_dimmer.start();
-    } else
-        qWarning() << "Bad Index: " << i;
+    }
     m_dimAfter = i;
 }
 
 void Brightness::on_ui_brightness_valueChanged(int i)
 {
-    qWarning() << "Current brightness: " << i;
     if(m_blocked) return;
     setBrightness(i);
     m_settings.setValue(BRIGHTNESS_KEY, i);
@@ -96,10 +90,8 @@ void Brightness::mouseUpdateChecker()
     QPoint newMousePos = QCursor::pos();
     if(newMousePos != m_lastMousePos)
     {
-        qWarning() << "Mouse different";
         if(m_dimmed)
         {
-            qWarning() << "Undimmed";
             m_dimmed = false;
             setBrightness(m_brightness);
             m_mouseUpdate.start(5000);
@@ -114,7 +106,6 @@ void Brightness::dim()
 {
     setBrightness(1);
     m_dimmed = true;
-    qWarning() << "Dimmed";
     // Speed up the updater a little
     m_mouseUpdate.start(500);
     m_dimmer.stop();

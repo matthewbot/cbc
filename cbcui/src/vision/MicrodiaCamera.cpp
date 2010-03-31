@@ -82,10 +82,8 @@ bool MicrodiaCamera::openCamera()
   }      
   int fd = open("/dev/video0", O_RDWR);
   
-  if (fd < 0) {
-    perror("open /dev/video0");
+  if (fd < 0) 
     return false;
-  }
   
   m_fd = fd;
   
