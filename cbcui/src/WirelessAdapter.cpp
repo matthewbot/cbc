@@ -25,35 +25,41 @@
 #include <QRegExp>
 #include <QDebug>
 
-WirelessAdapter::WirelessAdapter() : m_startscan(false), m_status(NOT_DETECTED) {
-  qRegisterMetaType<WirelessAdapterStatus>("WirelessAdapterStatus");
+WirelessAdapter::WirelessAdapter() : m_startscan(false)
+{
+  updateStatus();
   start();
 }
 WirelessAdapter::~WirelessAdapter() { }
 
-void WirelessAdapter::startScan() {
+void WirelessAdapter::startScan() 
+{
   m_startscan = true;
 }
 
-void WirelessAdapter::startConnect(QString ssid) {
+void WirelessAdapter::startConnect(QString ssid) 
+{
   m_connectssid = ssid;
   m_startconnect = true;
 }
 
-void WirelessAdapter::run() {
+void WirelessAdapter::run() 
+{
   while (true) {
     QThread::msleep(1000);
     
+    WirelessAdapterStatus oldstatus = m_status;
     updateStatus();
+    if (oldstatus != m_status)
+      statusChanged();
     
-    if (m_status == NOT_DETECTED)
-      continue;
-    else if (m_status == NOT_UP) {
+    if (m_status.adapterstate == WirelessAdapterStatus::NOT_UP)
       up();
+    
+    if (m_status.adapterstate < WirelessAdapterStatus::UP)
       continue;
-    }
-      
-    if (m_startscan) {
+    
+    if (m_startscan || oldstatus.adapterstate == WirelessAdapterStatus::NOT_UP) {
       doScan();
       m_startscan = false;
     }
@@ -68,34 +74,30 @@ void WirelessAdapter::run() {
 // used in a few functions
 static const QRegExp essid_regexp("ESSID:\"(\\w+)\"");
 
-void WirelessAdapter::up() 
-{
-  QProcess::execute("ifconfig rausb0 up");
-}
-
 void WirelessAdapter::updateStatus()
 {
+  m_status = WirelessAdapterStatus();
+
   QProcess ifconfig;
   ifconfig.start("ifconfig rausb0");
   ifconfig.waitForFinished();
   if (ifconfig.exitCode() != 0) {
-    m_startscan = true; // when we get plugged in we'll do one autoscan
-    setStatus(NOT_DETECTED);
+    m_status.adapterstate = WirelessAdapterStatus::NOT_DETECTED;
     return;
   }
   
   QString out = ifconfig.readAllStandardOutput();
-
   if (!out.contains("UP")) {
-    setStatus(NOT_UP);
+    m_status.adapterstate = WirelessAdapterStatus::NOT_UP;
     return;
   }
+  m_status.adapterstate = WirelessAdapterStatus::UP;
   
   static const QRegExp mac_regexp("(?:..:){5}..");
   if (mac_regexp.indexIn(out) != -1)
-    m_mac = mac_regexp.cap(0);
+    m_status.mac = mac_regexp.cap(0);
   else
-    m_mac = "Unknown";
+    m_status.mac = "Unknown";
     
   QProcess iwconfig;
   iwconfig.start("iwconfig rausb0");
@@ -103,32 +105,33 @@ void WirelessAdapter::updateStatus()
   QString iwout = iwconfig.readAllStandardOutput();
   
   if (essid_regexp.indexIn(iwout) != -1)
-    m_ssid = essid_regexp.cap(1);
-  else 
-    m_ssid = "";
-    
-  if (m_ssid.length() == 0) {
-    setStatus(NOT_CONNECTED);
+    m_status.ssid = essid_regexp.cap(1);
+  else {
+    m_status.connectionstate = WirelessAdapterStatus::NOT_CONNECTED;
     return;
   }
   
   static const QRegExp ip_regexp("inet addr:(\\S+)");
   if (ip_regexp.indexIn(out) != -1)
-    m_ip = ip_regexp.cap(1);
-  else
-    m_ip = "";
-  
-  if (m_ip.length() == 0) {
-    setStatus(NOT_CONNECTED);
+    m_status.ip = ip_regexp.cap(1);
+  else {
+    m_status.connectionstate = WirelessAdapterStatus::NOT_CONNECTED;
     return;
   }
   
-  setStatus(CONNECTED);
+  m_status.connectionstate = WirelessAdapterStatus::CONNECTED;
+  return;
 }
 
-void WirelessAdapter::doScan() {
-  WirelessAdapterStatus prev_stat = m_status;
-  setStatus(SCANNING);
+void WirelessAdapter::up() 
+{
+  QProcess::execute("ifconfig rausb0 up");
+}
+
+void WirelessAdapter::doScan() 
+{
+  m_status.scanning = true;
+  statusChanged();
 
   QProcess iwlist;
   iwlist.start("iwlist rausb0 scan");
@@ -136,18 +139,20 @@ void WirelessAdapter::doScan() {
   QString out = iwlist.readAllStandardOutput();
   
   int pos=0;
-  m_networks.clear();
+  QStringList networks;
   while ((pos = essid_regexp.indexIn(out, pos)) != -1) {
-    m_networks += essid_regexp.cap(1);
+    networks += essid_regexp.cap(1);
     pos += essid_regexp.matchedLength();
   }
+  scanComplete(networks);
   
-  scanComplete(m_networks);
-  setStatus(prev_stat);
+  m_status.scanning = false;
+  statusChanged();
 }
 
 void WirelessAdapter::doConnect(const QString &ssid) {
-  setStatus(CONNECTING);
+  m_status.connectionstate = WirelessAdapterStatus::CONNECTING;
+  statusChanged();
   
   /* For now, you must hardcode a WEP key here
   QProcess::execute("iwpriv rausb0 set AuthMode=WEPAUTO");
@@ -164,7 +169,7 @@ void WirelessAdapter::doConnect(const QString &ssid) {
     QString out = iwconfig.readAllStandardOutput();
     
     if (essid_regexp.indexIn(out) != -1 && essid_regexp.cap(1) == ssid) {
-      m_ssid = ssid;
+      m_status.ssid = ssid;
       doObtainIP();
       return;
     }
@@ -173,27 +178,41 @@ void WirelessAdapter::doConnect(const QString &ssid) {
     QThread::msleep(500);
   }
   
-  setStatus(NOT_CONNECTED);
+  m_status.connectionstate = WirelessAdapterStatus::NOT_CONNECTED;
+  statusChanged();
 }
 
 void WirelessAdapter::doObtainIP() {
-  setStatus(OBTAINING_IP);
+  m_status.connectionstate = WirelessAdapterStatus::OBTAINING_IP;
+  statusChanged();
   QProcess::execute("killall udhcpc");
   
   QProcess udhcpc;
   udhcpc.start("udhcpc -q -f -n -i rausb0");
   udhcpc.waitForFinished();
+  
   if (udhcpc.exitCode() == 0)
-    setStatus(CONNECTED);
-  else {
-    setStatus(NOT_CONNECTED);
-  }
+    m_status.connectionstate = WirelessAdapterStatus::CONNECTED;
+  else
+    m_status.connectionstate = WirelessAdapterStatus::NOT_CONNECTED;
+  statusChanged();
 }
 
-void WirelessAdapter::setStatus(WirelessAdapterStatus status) {
-  if (m_status != status) {
-    m_status = status;
-    emit statusChanged(status);
-  }
+WirelessAdapterStatus::WirelessAdapterStatus()
+: adapterstate(NOT_DETECTED),
+  connectionstate(NOT_CONNECTED),
+  scanning(false) { }
+  
+bool WirelessAdapterStatus::operator==(const WirelessAdapterStatus &other) const {
+  if (adapterstate != other.adapterstate || connectionstate != other.connectionstate)
+    return false;
+    
+  if (scanning != other.scanning)
+    return false;
+    
+  if (ssid != other.ssid || ip != other.ip || mac != other.mac)
+    return false;
+    
+  return true;
 }
 

@@ -36,7 +36,7 @@ public:
   virtual ~Wifi();
   
 public slots:
-  void wireless_statusChanged(WirelessAdapterStatus status);
+  void wireless_statusChanged();
   void wireless_scanComplete(QStringList networks);
   void on_ui_connectButton_pressed();
   

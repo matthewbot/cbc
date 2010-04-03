@@ -29,17 +29,32 @@
 #include <QString>
 #include <QStringList>
 
-// Qt's stupid signal/slot system wouldn't work with this inside the class :/
-enum WirelessAdapterStatus {
-  NOT_DETECTED,
-  NOT_UP,
-  NOT_CONNECTED,
-  SCANNING,
-  CONNECTING,
-  OBTAINING_IP,
-  CONNECTED
+struct WirelessAdapterStatus {
+  WirelessAdapterStatus();
+  
+  enum AdapterState {
+    NOT_DETECTED,
+    NOT_UP,
+    UP
+  };
+  AdapterState adapterstate;
+  enum ConnectionState {
+    NOT_CONNECTED,
+    CONNECTING,
+    OBTAINING_IP,
+    CONNECTED
+  };
+  ConnectionState connectionstate;
+  
+  bool scanning;
+  
+  QString ssid;
+  QString ip;
+  QString mac;
+  
+  bool operator==(const WirelessAdapterStatus &other) const;
+  inline bool operator!=(const WirelessAdapterStatus &other) const { return !(*this == other); }
 };
-Q_DECLARE_METATYPE(WirelessAdapterStatus)
 
 class WirelessAdapter : public QThread {
 Q_OBJECT
@@ -48,17 +63,14 @@ public:
   WirelessAdapter();
   ~WirelessAdapter();
   
-  inline WirelessAdapterStatus getStatus() { return m_status; }
-  inline const QString &getMACAddress() { return m_mac; }
-  inline QString getSSID() { return m_ssid; }
-  inline QString getIP() { return m_ip; }
+  inline const WirelessAdapterStatus &getStatus() { return m_status; }
   
 public slots:
   void startScan();
   void startConnect(QString ssid);
   
 signals:
-  void statusChanged(WirelessAdapterStatus status);  
+  void statusChanged();  
   void scanComplete(QStringList networks);
   
 private:
@@ -72,13 +84,7 @@ private:
   bool m_startscan;
   bool m_startconnect; QString m_connectssid;
 
-  void setStatus(WirelessAdapterStatus WirelessAdapaterStatus);
   WirelessAdapterStatus m_status;
-  
-  QString m_mac;
-  QStringList m_networks;
-  QString m_ssid;
-  QString m_ip;
 };
 
 #endif

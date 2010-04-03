@@ -25,11 +25,12 @@
 
 Wifi::Wifi(QWidget *parent) : Page(parent) {
   setupUi(this);
-  wireless_statusChanged(NOT_DETECTED);
+  ui_networkList->clear();
+  wireless_statusChanged(); 
   
   QObject::connect(ui_refreshButton, SIGNAL(pressed()), &wireless, SLOT(startScan()));
   
-  QObject::connect(&wireless, SIGNAL(statusChanged(WirelessAdapterStatus)), this, SLOT(wireless_statusChanged(WirelessAdapterStatus)));
+  QObject::connect(&wireless, SIGNAL(statusChanged()), this, SLOT(wireless_statusChanged()));
   QObject::connect(&wireless, SIGNAL(scanComplete(QStringList)), this, SLOT(wireless_scanComplete(QStringList)));
 }
 Wifi::~Wifi() { }
@@ -39,47 +40,36 @@ void Wifi::on_ui_connectButton_pressed() {
   wireless.startConnect(ssid);
 }
 
-void Wifi::wireless_statusChanged(WirelessAdapterStatus status) {
-  switch (status) {
-    case NOT_DETECTED:
-      ui_adapterLabel->setText("No wireless adapter detected");
-      ui_networkList->clear();
-      ui_ssidLabel->setText("");
-      ui_ipLabel->setText("");
-      break;
-      
-    case NOT_UP:
-      ui_adapterLabel->setText("Starting wireless adapter...");
-      break;
-      
-    case NOT_CONNECTED:
-      ui_adapterLabel->setText("Adapter OK! MAC: " + wireless.getMACAddress());
-      ui_ssidLabel->setText("");
-      ui_ipLabel->setText("");
-      break;
-      
-    case SCANNING:
-      ui_networkList->clear();
-      ui_networkList->addItem("Scanning...");
-      break;
-      
-    case CONNECTING:
-      ui_adapterLabel->setText("Connecting...");
-      ui_ssidLabel->setText("Connecting...");
-      break;
-      
-    case OBTAINING_IP:
-      ui_adapterLabel->setText("Obtaining IP...");
-      ui_ssidLabel->setText(wireless.getSSID());
-      ui_ipLabel->setText("Obtaining...");
-      break;
-      
-    case CONNECTED:
-      ui_adapterLabel->setText("Connected!");
-      ui_ssidLabel->setText(wireless.getSSID());
-      ui_ipLabel->setText(wireless.getIP());
-      break;
+void Wifi::wireless_statusChanged() {
+  const WirelessAdapterStatus &status = wireless.getStatus();
+  
+  if (status.adapterstate != WirelessAdapterStatus::UP)
+    ui_networkList->clear();
+  else if (status.scanning) {
+    ui_networkList->clear();
+    ui_networkList->addItem("Scanning...");
   }
+  
+  if (status.connectionstate == WirelessAdapterStatus::NOT_CONNECTED)
+    ui_ssidLabel->setText("");
+  else if (status.connectionstate == WirelessAdapterStatus::CONNECTING)
+    ui_ssidLabel->setText("Connecting...");
+  else
+    ui_ssidLabel->setText(status.ssid);
+    
+  if (status.connectionstate < WirelessAdapterStatus::OBTAINING_IP)
+    ui_ipLabel->setText("");
+  else if (status.connectionstate == WirelessAdapterStatus::OBTAINING_IP)
+    ui_ipLabel->setText("Obtaining...");
+  else
+    ui_ipLabel->setText(status.ip);
+  
+  if (status.adapterstate == WirelessAdapterStatus::NOT_DETECTED)
+    ui_adapterLabel->setText("No wireless adapter detected");
+  else if (status.adapterstate == WirelessAdapterStatus::NOT_UP)
+    ui_adapterLabel->setText("Starting wireless adapter...");
+  else
+    ui_adapterLabel->setText("Adapter OK! MAC: " + status.mac);
 }
 
 void Wifi::wireless_scanComplete(QStringList networks) {
