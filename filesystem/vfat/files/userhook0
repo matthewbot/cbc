@@ -60,7 +60,7 @@ udhcpc eth0
 # Set up wireless network
 #
 echo "Starting wireless network driver"
-insmod /drivers/rt73.ko
+insmod /mnt/usb/rt73.ko
 if [ -e /mnt/usb/network_config ]; then
 	cp /mnt/usb/network_config /psp
 	/usr/chumby/scripts/start_network &
