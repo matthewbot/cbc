@@ -191,10 +191,23 @@ void WirelessAdapter::doObtainIP() {
   udhcpc.start("udhcpc -q -f -n -i rausb0");
   udhcpc.waitForFinished();
   
-  if (udhcpc.exitCode() == 0)
-    m_status.connectionstate = WirelessAdapterStatus::CONNECTED;
-  else
+  if (udhcpc.exitCode() != 0) {
     m_status.connectionstate = WirelessAdapterStatus::NOT_CONNECTED;
+    statusChanged();
+    return;
+  }
+  
+  QString out = udhcpc.readAllStandardOutput();
+  
+  static const QRegExp lease_regexp("Lease of ((?:\\d{1,3}\\.){3}\\d{1,3}) obtained");
+  if (lease_regexp.indexIn(out) == -1) {
+    m_status.connectionstate = WirelessAdapterStatus::NOT_CONNECTED;
+    statusChanged();
+    return;
+  }
+  
+  m_status.connectionstate = WirelessAdapterStatus::CONNECTED;
+  m_status.ip = lease_regexp.cap(1);
   statusChanged();
 }
 
