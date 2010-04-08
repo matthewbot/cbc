@@ -22,10 +22,16 @@
 
 #include "Wifi.h"
 #include <QDebug>
+#include <QMessageBox>
+#include <QFile>
 
 #define DATA_SSID Qt::UserRole
+#define DATA_ENCRYPTED (Qt::UserRole+1)
 
-Wifi::Wifi(QWidget *parent) : Page(parent) {
+Wifi::Wifi(QWidget *parent) 
+: Page(parent), 
+  m_settings("/mnt/user/config/wifi", QSettings::IniFormat) 
+{
   setupUi(this);
   ui_networkList->clear();
   wireless_statusChanged(); 
@@ -38,11 +44,29 @@ Wifi::Wifi(QWidget *parent) : Page(parent) {
 Wifi::~Wifi() { }
 
 void Wifi::on_ui_connectButton_pressed() {
-  QString ssid = ui_networkList->item(ui_networkList->currentRow())->data(DATA_SSID).toString();
+  QListWidgetItem *item = ui_networkList->currentItem();
+  QString ssid = item->data(DATA_SSID).toString();
+  bool encrypted = item->data(DATA_ENCRYPTED).toBool();
   
   WirelessConnectionSettings connsettings;
   connsettings.ssid = ssid;
-  connsettings.encryption = WirelessConnectionSettings::OPEN;
+  if (encrypted) {
+    loadKey(ssid);
+    
+    int type = m_settings.value(ssid + "_type", -1).toInt();
+    if (type == -1) {
+      QMessageBox::warning(this, "Connection error", 
+        "No encryption key for '" + ssid + "' "
+        "Place a proper key file called '" + ssid + ".txt' "
+        "on a thumb drive, mount it, and try again");
+      return;
+    }
+    connsettings.encryption = (WirelessConnectionSettings::EncryptionType)type;
+    connsettings.key = m_settings.value(ssid + "_key", "").toString();
+  } else {
+    connsettings.encryption = WirelessConnectionSettings::OPEN;
+  }
+  
   wireless.startConnect(connsettings);
 }
 
@@ -94,7 +118,30 @@ void Wifi::wireless_scanComplete() {
     
     QListWidgetItem *listitem = new QListWidgetItem(buf);
     listitem->setData(DATA_SSID, i->ssid);
+    listitem->setData(DATA_ENCRYPTED, i->encrypted);
     ui_networkList->addItem(listitem);
   }
+}
+
+void Wifi::loadKey(const QString &ssid) {
+  QFile keyfile("/mnt/browser/usb/" + ssid + ".txt");
+  if (!keyfile.open(QIODevice::ReadOnly | QIODevice::Text))
+    return;
+    
+  QString typestr = keyfile.readLine().trimmed();
+  WirelessConnectionSettings::EncryptionType type;
+  if (typestr == "WEP") {
+    type = WirelessConnectionSettings::WEP;
+  } else {
+    QMessageBox::warning(this, "Key file error", 
+        "Unknown encryption type '" + typestr + "'");
+    return;
+  }
+  
+  QString key = keyfile.readLine().trimmed();
+  
+  m_settings.setValue(ssid + "_type", (int)type);
+  m_settings.setValue(ssid + "_key", key);
+  m_settings.sync();
 }
 

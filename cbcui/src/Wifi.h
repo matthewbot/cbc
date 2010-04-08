@@ -23,7 +23,7 @@
 #ifndef __WIFI_H__
 #define __WIFI_H__
 
-#include <QStringList>
+#include <QSettings>
 #include "ui_Wifi.h"
 #include "Page.h"
 #include "WirelessAdapter.h"
@@ -41,7 +41,10 @@ public slots:
   void on_ui_connectButton_pressed();
   
 private:
+  void loadKey(const QString &ssid);
+
   WirelessAdapter wireless;
+  QSettings m_settings;
 };
 
 #endif
