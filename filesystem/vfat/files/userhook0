@@ -45,7 +45,7 @@ INTERNAL_DEVICE=$1
 #
 ifconfig lo 127.0.0.1
 
-dd if=/mnt/usb/splash_screen.bin of=/dev/fb0
+imgtool /mnt/usb/splash_screen.png
 
 #
 # Set up wired network
