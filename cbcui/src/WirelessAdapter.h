@@ -56,6 +56,19 @@ struct WirelessAdapterStatus {
   inline bool operator!=(const WirelessAdapterStatus &other) const { return !(*this == other); }
 };
 
+struct WirelessConnectionSettings {
+	enum EncryptionType {
+		OPEN,
+		WEP,
+		WPA,
+		WPA2
+	};
+	
+	QString ssid;
+	EncryptionType encryption;
+	QString key;
+};
+
 class WirelessAdapter : public QThread {
 Q_OBJECT
 
@@ -67,7 +80,7 @@ public:
   
 public slots:
   void startScan();
-  void startConnect(QString ssid);
+  void startConnect(WirelessConnectionSettings connsettings);
   
 signals:
   void statusChanged();  
@@ -78,11 +91,12 @@ private:
   void updateStatus();
   void up();
   void doScan();
-  void doConnect(const QString &ssid);
+  void doConnect();
   void doObtainIP();
 
   bool m_startscan;
-  bool m_startconnect; QString m_connectssid;
+  bool m_startconnect;
+  WirelessConnectionSettings m_connsettings;
 
   WirelessAdapterStatus m_status;
 };

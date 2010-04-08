@@ -37,9 +37,9 @@ void WirelessAdapter::startScan()
   m_startscan = true;
 }
 
-void WirelessAdapter::startConnect(QString ssid) 
+void WirelessAdapter::startConnect(WirelessConnectionSettings connsettings) 
 {
-  m_connectssid = ssid;
+  m_connsettings = connsettings;
   m_startconnect = true;
 }
 
@@ -65,7 +65,7 @@ void WirelessAdapter::run()
     }
     
     if (m_startconnect) {
-      doConnect(m_connectssid);
+      doConnect();
       m_startconnect = false;
     }
   }
@@ -150,16 +150,23 @@ void WirelessAdapter::doScan()
   statusChanged();
 }
 
-void WirelessAdapter::doConnect(const QString &ssid) {
+void WirelessAdapter::doConnect() {
   m_status.connectionstate = WirelessAdapterStatus::CONNECTING;
   statusChanged();
   
-  /* For now, you must hardcode a WEP key here
-  QProcess::execute("iwpriv rausb0 set AuthMode=WEPAUTO");
-  QProcess::execute("iwpriv rausb0 set EncrypType=WEP");
-  QProcess::execute("iwpriv rausb0 set Key1=<<Insert your key>>");
-  For you WPA2 users, you'll have to fish it out of the chumby scripts :P
-  */
+  switch (m_connsettings.encryption) {
+    case WirelessConnectionSettings::WEP:
+      QProcess::execute("iwpriv rausb0 set AuthMode=WEPAUTO");
+      QProcess::execute("iwpriv rausb0 set EncrypType=WEP");
+      QProcess::execute("iwpriv rausb0 set Key1=" + m_connsettings.key);
+      break;
+      
+    // Patches welcome for other types of encryption!
+      
+    default:
+      break;
+  }
+  QString &ssid = m_connsettings.ssid;
   
   int i;
   for (i=0;i<6;i++) {

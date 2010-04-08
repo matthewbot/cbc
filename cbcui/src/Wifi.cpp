@@ -37,7 +37,11 @@ Wifi::~Wifi() { }
 
 void Wifi::on_ui_connectButton_pressed() {
   QString ssid = ui_networkList->item(ui_networkList->currentRow())->text();
-  wireless.startConnect(ssid);
+  
+  WirelessConnectionSettings connsettings;
+  connsettings.ssid = ssid;
+  connsettings.encryption = WirelessConnectionSettings::OPEN;
+  wireless.startConnect(connsettings);
 }
 
 void Wifi::wireless_statusChanged() {
