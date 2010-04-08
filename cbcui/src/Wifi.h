@@ -41,10 +41,13 @@ public slots:
   void on_ui_connectButton_pressed();
   
 private:
+  void doConnect(const QString &ssid, bool encrypted);
   void loadKey(const QString &ssid);
+  void doAutoConnect();
 
   WirelessAdapter wireless;
   QSettings m_settings;
+  bool m_autoconnect;
 };
 
 #endif
