@@ -23,6 +23,8 @@
 #include "Wifi.h"
 #include <QDebug>
 
+#define DATA_SSID Qt::UserRole
+
 Wifi::Wifi(QWidget *parent) : Page(parent) {
   setupUi(this);
   ui_networkList->clear();
@@ -31,12 +33,12 @@ Wifi::Wifi(QWidget *parent) : Page(parent) {
   QObject::connect(ui_refreshButton, SIGNAL(pressed()), &wireless, SLOT(startScan()));
   
   QObject::connect(&wireless, SIGNAL(statusChanged()), this, SLOT(wireless_statusChanged()));
-  QObject::connect(&wireless, SIGNAL(scanComplete(QStringList)), this, SLOT(wireless_scanComplete(QStringList)));
+  QObject::connect(&wireless, SIGNAL(scanComplete()), this, SLOT(wireless_scanComplete()));
 }
 Wifi::~Wifi() { }
 
 void Wifi::on_ui_connectButton_pressed() {
-  QString ssid = ui_networkList->item(ui_networkList->currentRow())->text();
+  QString ssid = ui_networkList->item(ui_networkList->currentRow())->data(DATA_SSID).toString();
   
   WirelessConnectionSettings connsettings;
   connsettings.ssid = ssid;
@@ -76,10 +78,23 @@ void Wifi::wireless_statusChanged() {
     ui_adapterLabel->setText("Adapter OK! MAC: " + status.mac);
 }
 
-void Wifi::wireless_scanComplete(QStringList networks) {
+void Wifi::wireless_scanComplete() {
   ui_networkList->clear();
   
-  for (int i=0; i < networks.size(); ++i)
-    ui_networkList->addItem(networks[i]);
+  const QList<ScanResult> &scanresults = wireless.getScanResults();
+  for (QList<ScanResult>::const_iterator i = scanresults.begin(); i != scanresults.end(); ++i) {
+    QString buf;
+    QTextStream stream(&buf);
+    
+    stream << i->ssid;
+    stream << " - " << i->quality << "/100";
+    if (i->encrypted)
+      stream << " (encrypted)";
+    stream.flush();
+    
+    QListWidgetItem *listitem = new QListWidgetItem(buf);
+    listitem->setData(DATA_SSID, i->ssid);
+    ui_networkList->addItem(listitem);
+  }
 }
 

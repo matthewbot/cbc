@@ -69,6 +69,12 @@ struct WirelessConnectionSettings {
 	QString key;
 };
 
+struct ScanResult {
+  QString ssid;
+  bool encrypted;
+  int quality;
+};
+
 class WirelessAdapter : public QThread {
 Q_OBJECT
 
@@ -77,6 +83,7 @@ public:
   ~WirelessAdapter();
   
   inline const WirelessAdapterStatus &getStatus() { return m_status; }
+  inline const QList<ScanResult> &getScanResults() { return m_scanresults; }
   
 public slots:
   void startScan();
@@ -84,7 +91,7 @@ public slots:
   
 signals:
   void statusChanged();  
-  void scanComplete(QStringList networks);
+  void scanComplete();
   
 private:
   virtual void run();
@@ -99,6 +106,7 @@ private:
   WirelessConnectionSettings m_connsettings;
 
   WirelessAdapterStatus m_status;
+  QList<ScanResult> m_scanresults;
 };
 
 #endif

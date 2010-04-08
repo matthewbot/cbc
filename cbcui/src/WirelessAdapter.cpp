@@ -71,7 +71,6 @@ void WirelessAdapter::run()
   }
 }
 
-// used in a few functions
 static const QRegExp essid_regexp("ESSID:\"(\\w+)\"");
 
 void WirelessAdapter::updateStatus()
@@ -138,14 +137,30 @@ void WirelessAdapter::doScan()
   iwlist.waitForFinished();
   QString out = iwlist.readAllStandardOutput();
   
-  int pos=0;
-  QStringList networks;
-  while ((pos = essid_regexp.indexIn(out, pos)) != -1) {
-    networks += essid_regexp.cap(1);
-    pos += essid_regexp.matchedLength();
-  }
-  scanComplete(networks);
+  static const QRegExp scan_regexp("(\\w[\\w\\s]+):\\s?\"?([\\w\\d]+)");
   
+  int pos=0;
+  m_scanresults.clear();
+  
+  QStringList lines = out.split("\n");
+  for (int i=0; i<lines.size(); i++) {
+    if (scan_regexp.indexIn(lines[i]) == -1) { continue; }
+    const QString &key = scan_regexp.cap(1);
+    const QString &value = scan_regexp.cap(2);
+    
+    if (key == "ESSID") {
+      m_scanresults.append(ScanResult());
+      m_scanresults.back().ssid = value;
+    } else if (key == "Encryption key" && !m_scanresults.isEmpty()) {
+      m_scanresults.back().encrypted = (value == "on");
+    } else if (key == "Quality" && !m_scanresults.isEmpty()) {
+      m_scanresults.back().quality = value.toInt();
+    }
+    
+    pos += scan_regexp.matchedLength();
+  }
+  
+  scanComplete();
   m_status.scanning = false;
   statusChanged();
 }

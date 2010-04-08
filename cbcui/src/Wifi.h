@@ -37,7 +37,7 @@ public:
   
 public slots:
   void wireless_statusChanged();
-  void wireless_scanComplete(QStringList networks);
+  void wireless_scanComplete();
   void on_ui_connectButton_pressed();
   
 private:
