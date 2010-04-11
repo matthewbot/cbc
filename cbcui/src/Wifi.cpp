@@ -146,6 +146,10 @@ void Wifi::loadKey(const QString &ssid) {
   WirelessConnectionSettings::EncryptionType type;
   if (typestr == "WEP") {
     type = WirelessConnectionSettings::WEP;
+  } else if (typestr == "WPA") {
+    type = WirelessConnectionSettings::WPA;
+  } else if (typestr == "WPA2") {
+    type = WirelessConnectionSettings::WPA2;
   } else {
     QMessageBox::warning(this, "Key file error", 
         "Unknown encryption type '" + typestr + "'");

@@ -176,7 +176,17 @@ void WirelessAdapter::doConnect() {
       QProcess::execute("iwpriv rausb0 set Key1=" + m_connsettings.key);
       break;
       
-    // Patches welcome for other types of encryption!
+    case WirelessConnectionSettings::WPA:
+      QProcess::execute("iwpriv rausb0 set AuthMode=WPAPSK");
+      QProcess::execute("iwpriv rausb0 set EncrypType=TKIP");
+      QProcess::execute("iwpriv rausb0 set WPAPSK=" + m_connsettings.key);
+      break;
+      
+    case WirelessConnectionSettings::WPA2:
+      QProcess::execute("iwpriv rausb0 set AuthMode=WPA2PSK");
+      QProcess::execute("iwpriv rausb0 set EncrypType=AES");
+      QProcess::execute("iwpriv rausb0 set WPAPSK=" + m_connsettings.key);
+      break;
       
     default:
       break;
