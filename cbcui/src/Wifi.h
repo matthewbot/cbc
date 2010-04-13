@@ -18,26 +18,36 @@
  *  in the project root.  If not, see <http://www.gnu.org/licenses/>.     *
  **************************************************************************/
 
-#ifndef __UTILITIES_H__
-#define __UTILITIES_H__
+// Author: Matthew Thompson (matthewbot@gmail.com)
 
-#include "ui_Utilities.h"
+#ifndef __WIFI_H__
+#define __WIFI_H__
+
+#include <QSettings>
+#include "ui_Wifi.h"
 #include "Page.h"
+#include "WirelessAdapter.h"
 
-#include "CreateStatus.h"
-#include "Wifi.h"
-
-class Utilities : public Page, private Ui::Utilities
+class Wifi : public Page, private Ui::Wifi
 {
-    Q_OBJECT
-
+  Q_OBJECT
 public:
-    Utilities(QWidget *parent = 0);
-    ~Utilities();
-
+  Wifi(QWidget *parent = 0);
+  virtual ~Wifi();
+  
+public slots:
+  void wireless_statusChanged();
+  void wireless_scanComplete();
+  void on_ui_connectButton_pressed();
+  
 private:
-    CreateStatus m_createStatus;
-    Wifi m_wifi;
+  void doConnect(const QString &ssid, bool encrypted);
+  void loadKey(const QString &ssid);
+  void doAutoConnect();
+
+  WirelessAdapter wireless;
+  QSettings m_settings;
+  bool m_autoconnect;
 };
 
 #endif

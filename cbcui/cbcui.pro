@@ -48,7 +48,9 @@ HEADERS += src/MainWindow.h \
     src/MotorTest.h \
     src/SerialPort.h \
     src/SerialServer.h \
-    src/Brightness.h
+    src/Brightness.h \
+    src/Wifi.h \
+    src/WirelessAdapter.h
 FORMS += ui/MainWindow.ui \
     ui/MainMenu.ui \
     ui/Programs.ui \
@@ -71,7 +73,8 @@ FORMS += ui/MainWindow.ui \
     ui/Keypad.ui \
     ui/MotorTuning.ui \
     ui/MotorTest.ui \
-    ui/Brightness.ui
+    ui/Brightness.ui \
+    ui/Wifi.ui
 SOURCES += src/main.cpp \
     src/MainWindow.cpp \
     src/MainMenu.cpp \
@@ -101,7 +104,9 @@ SOURCES += src/main.cpp \
     src/MotorTest.cpp \
     src/SerialPort.cpp \
     src/SerialServer.cpp \
-    src/Brightness.cpp
+    src/Brightness.cpp \
+    src/Wifi.cpp \
+    src/WirelessAdapter.cpp
 
 # Vision
 FORMS += src/vision/AdjustColorWidget.ui
