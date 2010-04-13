@@ -24,6 +24,7 @@
 
 #define DIM_AFTER_KEY   "Dim After"
 #define BRIGHTNESS_KEY  "Brightness"
+#define DISABLE_KEY     "Disable"
 
 #define MINUTE 60000
 
@@ -129,5 +130,6 @@ void Brightness::setBrightness(int i)
 {
     QString s = "";
     s.fill(getHex(i), 4);
-    system(QString(QString("echo 0x") + s + QString(" > /proc/sys/sense1/brightness")).toAscii());
+    if (!m_settings.value(DISABLE_KEY, false).toBool())
+        system(QString(QString("echo 0x") + s + QString(" > /proc/sys/sense1/brightness")).toAscii());
 }
