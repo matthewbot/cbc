@@ -5,7 +5,7 @@ CBOB_DIR = $(KERNEL_DIR)/cbob
 
 filesystem:
 	mkdir -p $(DEST)
-	(cd files; rsync -a userhook0 ext2.ko microdia.ko FIRMWARE_VERSION videodev.ko $(DEST))
+	(cd files; rsync -a userhook0 ext2.ko microdia.ko FIRMWARE_VERSION videodev.ko rt73.ko $(DEST))
 	(cd files; rsync -a rcS mkdev.sh mkfs.ext2 fsck.ext2 splash_screen.png $(DEST))
 #	mkdir -p $(DEST)/update2
 #	(cd files; rsync -a k1.bin.zip $(DEST)/update2)
