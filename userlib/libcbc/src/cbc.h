@@ -33,6 +33,10 @@
 #include <stdio.h>
 #include "compat.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern int __pid_defaults[6];
 
 void set_digital_port_direction(int mask);
@@ -103,6 +107,10 @@ void cbc_printf(int col, int row, char *t, ...);/*Does printf at col,row */
 void set_analog_floats(int mask);
 int get_analog_floats();
 void set_each_analog_state(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7);
+
+#ifdef __cplusplus
+}
+#endif
 
 #define SIMPLEWORLD 0
 #define BB08WORLD 1

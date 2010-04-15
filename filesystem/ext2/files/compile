@@ -7,14 +7,58 @@ NAME=$DIR/robot_name.txt
 rm -rf $DIR
 mkdir -p $DIR
 
-echo "Compiling ${1}" 
-/mnt/kiss/usercode/gcc-usercode "${1}" -o $PROG 2>&1
-if [ -e $PROG ]; then
-  echo "Compile succeeded." 
-  echo "${1}" > $NAME
-	exit 0
-else
-  echo "Compile failed."
-	exit 1
-fi
+echo "Program last modified:"
+date -R -r ${1}
 
+if [ ${1##*.} = "bin" ]; then
+  echo "Copying ${1}" 
+  cp ${1} $PROG
+  if [ -e $PROG ]; then
+    echo "${1}" > $NAME
+    echo "Copy succeeded."
+  else
+    echo "Copy failed."
+  fi
+else
+
+  if [ ! -e "${1%.*}.bin" ]; then
+  
+    echo "Compiling ${1}"
+    if [ ${1##*.} = "c" ]; then
+      /mnt/kiss/usercode/gcc-usercode "${1}" -o ${1%.*}.bin 2>&1
+    else 
+      if [ ${1##*.} = "cpp" ]; then
+        /mnt/user/nhs/g++-usercode "${1}" -o ${1%.*}.bin 2>&1
+      else
+        if [ ${1##*.} = "cxx" ]; then
+          /mnt/user/nhs/g++-usercode "${1}" -o ${1%.*}.bin 2>&1
+        else
+          echo "Unsupported format.  Only C, C++, and binary are supported."
+        fi
+      fi
+    fi
+    if [ -e ${1%.*}.bin ]; then
+      echo "Compile succeeded." 
+      
+	  echo "Copying ${1%.*}.bin"
+	  cp ${1%.*}.bin $PROG
+	  if [ -e $PROG ]; then
+        echo "Copy succeeded."
+  	    echo "${1}" > $NAME
+      fi
+    else
+      echo "Compile failed."
+    fi
+  
+  else
+    echo "Copying ${1%.*}.bin"
+      cp ${1%.*}.bin $PROG
+      if [ -e $PROG ]; then
+        echo "Copy succeeded."
+  	    echo "${1}" > $NAME
+	  else
+        echo "Copy failed."
+      fi
+  fi
+  
+fi
