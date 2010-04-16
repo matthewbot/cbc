@@ -25,7 +25,7 @@
 #define DIM_AFTER_KEY   "Dim_After"
 #define BRIGHTNESS_KEY  "Brightness"
 #define DIM_OFF_KEY     "Dim_Off"
-#define DIM_LEVEL       45
+#define DIM_LEVEL       80
 #define MINUTE          60000
 
 Brightness::Brightness(QWidget *parent) :
