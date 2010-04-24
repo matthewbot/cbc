@@ -30,7 +30,7 @@
 
 Wifi::Wifi(QWidget *parent) 
 : Page(parent), 
-  m_settings("/mnt/user/config/wifi", QSettings::IniFormat),
+  m_settings("/mnt/user/cbc_v2.config", QSettings::NativeFormat),
   m_autoconnect(true)
 {
   setupUi(this);
@@ -116,7 +116,8 @@ void Wifi::doConnect(const QString &ssid, bool encrypted) {
   if (encrypted) {
     loadKey(ssid);
     
-    int type = m_settings.value(ssid + "_type", -1).toInt();
+    int type = m_settings.value("Wifi/" + ssid + "_type", -1).toInt();
+    
     if (type == -1) {
       QMessageBox::warning(this, "Connection error", 
         "No encryption key for '" + ssid + "' "
@@ -125,15 +126,15 @@ void Wifi::doConnect(const QString &ssid, bool encrypted) {
       return;
     }
     connsettings.encryption = (WirelessConnectionSettings::EncryptionType)type;
-    connsettings.key = m_settings.value(ssid + "_key", "").toString();
+    connsettings.key = m_settings.value("Wifi/" + ssid + "_key", "").toString();
   } else {
     connsettings.encryption = WirelessConnectionSettings::OPEN;
   }
   
   wireless.startConnect(connsettings);
   
-  m_settings.setValue("last_ssid", ssid);
-  m_settings.setValue("last_ssid_encrypted", encrypted);
+  m_settings.setValue("Wifi/last_ssid", ssid);
+  m_settings.setValue("Wifi/last_ssid_encrypted", encrypted);
   m_settings.sync();
 }
 
@@ -158,17 +159,17 @@ void Wifi::loadKey(const QString &ssid) {
   
   QString key = keyfile.readLine().trimmed();
   
-  m_settings.setValue(ssid + "_type", (int)type);
-  m_settings.setValue(ssid + "_key", key);
+  m_settings.setValue("Wifi/" + ssid + "_type", (int)type);
+  m_settings.setValue("Wifi/" + ssid + "_key", key);
   m_settings.sync();
 }
 
 void Wifi::doAutoConnect() {
-  if (!m_settings.contains("last_ssid"))
+  if (!m_settings.contains("Wifi/last_ssid"))
     return;
 
-  QString last_ssid = m_settings.value("last_ssid").toString();
-  bool last_ssid_encrypted = m_settings.value("last_ssid_encrypted").toBool();
+  QString last_ssid = m_settings.value("Wifi/last_ssid").toString();
+  bool last_ssid_encrypted = m_settings.value("Wifi/last_ssid_encrypted").toBool();
   bool seen_last_ssid = false;
   
   const QList<ScanResult> &scanresults = wireless.getScanResults();
