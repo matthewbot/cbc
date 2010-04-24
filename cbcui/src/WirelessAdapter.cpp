@@ -193,6 +193,8 @@ void WirelessAdapter::doConnect() {
       break;
       
     default:
+      QProcess::execute("iwpriv rausb0 set AuthMode=OPEN");
+      QProcess::execute("iwpriv rausb0 set EncrypType=NONE");
       break;
   }
   
