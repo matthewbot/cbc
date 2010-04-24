@@ -169,6 +169,10 @@ void WirelessAdapter::doConnect() {
   m_status.connectionstate = WirelessAdapterStatus::CONNECTING;
   statusChanged();
   
+  QProcess::execute("iwpriv rausb0 set TxRate=6");
+  QString &ssid = m_connsettings.ssid;
+  QProcess::execute("iwpriv rausb0 set SSID=" + ssid);
+  
   switch (m_connsettings.encryption) {
     case WirelessConnectionSettings::WEP:
       QProcess::execute("iwpriv rausb0 set AuthMode=WEPAUTO");
@@ -191,7 +195,6 @@ void WirelessAdapter::doConnect() {
     default:
       break;
   }
-  QString &ssid = m_connsettings.ssid;
   
   int i;
   for (i=0;i<6;i++) {
