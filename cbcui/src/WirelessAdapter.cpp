@@ -197,8 +197,10 @@ void WirelessAdapter::doConnect() {
   }
   
   int i;
-  for (i=0;i<6;i++) {
-    QProcess iwconfig; // check first, we may already be associated
+  for (i=0;i<50;i++) {
+    QThread::msleep(100);
+  
+    QProcess iwconfig;
     iwconfig.start("iwconfig rausb0");
     iwconfig.waitForFinished();
     QString out = iwconfig.readAllStandardOutput();
@@ -208,9 +210,6 @@ void WirelessAdapter::doConnect() {
       doObtainIP();
       return;
     }
-    
-    QProcess::execute("iwpriv rausb0 set SSID=" + ssid);
-    QThread::msleep(500);
   }
   
   m_status.connectionstate = WirelessAdapterStatus::NOT_CONNECTED;
@@ -220,20 +219,12 @@ void WirelessAdapter::doConnect() {
 void WirelessAdapter::doObtainIP() {
   m_status.connectionstate = WirelessAdapterStatus::OBTAINING_IP;
   statusChanged();
-  QProcess::execute("killall udhcpc");
   
   QProcess udhcpc;
   udhcpc.start("udhcpc -q -f -n -i rausb0");
   udhcpc.waitForFinished();
   
-  if (udhcpc.exitCode() != 0) {
-    m_status.connectionstate = WirelessAdapterStatus::NOT_CONNECTED;
-    statusChanged();
-    return;
-  }
-  
   QString out = udhcpc.readAllStandardOutput();
-  
   static const QRegExp lease_regexp("Lease of ((?:\\d{1,3}\\.){3}\\d{1,3}) obtained");
   if (lease_regexp.indexIn(out) == -1) {
     m_status.connectionstate = WirelessAdapterStatus::NOT_CONNECTED;
