@@ -55,7 +55,7 @@ static int cbob_spi_current_transaction;
 static int cbob_spi_do_transaction(void);
 
 static int cbob_spi_desync;
-static void cbob_spi_update_desync(short replycount, short incount);
+static void cbob_spi_update_desync(short replycount, short incount, short cmd);
 
 static void cbob_spi_init_timer(void);
 static void cbob_spi_shutdown_timer(void);
@@ -135,7 +135,7 @@ static int cbob_spi_do_transaction()
     case CBOB_TRANSACTION_CBOBLENGTH:
       cbob_spi_current_cboblength = spi_exchange_data(0);
       spi_exchange_data(0);
-      cbob_spi_update_desync(cbob_spi_current_cboblength, msg->incount);
+      cbob_spi_update_desync(cbob_spi_current_cboblength, msg->incount, msg->cmd);
       break;
       
     case CBOB_TRANSACTION_CBOBDATA:
@@ -192,7 +192,7 @@ static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *r
   return IRQ_HANDLED;
 }
 
-static void cbob_spi_update_desync(short replycount, short incount) {
+static void cbob_spi_update_desync(short replycount, short incount, short cmd) {
   int desync = (replycount > incount || replycount <= 0);
   
   if (desync == cbob_spi_desync)
@@ -201,7 +201,7 @@ static void cbob_spi_update_desync(short replycount, short incount) {
   cbob_spi_desync = desync;
   
   if (desync)
-    printk(KERN_WARNING "CBOB desync detected. replycount is %hd, incount is %hd\n", replycount, incount);
+    printk(KERN_WARNING "CBOB desync detected. replycount is %hd, incount is %hd, cmd is %hd\n", replycount, incount, cmd);
   else
     printk(KERN_NOTICE "CBOB resynced.\n");
 }
@@ -226,7 +226,7 @@ static unsigned int spi_exchange_data(unsigned int dataTx)
 {
   while(!spi_tx_fifo_empty());
 
-  SSP_TX_REG(SPI_CHAN)   = dataTx;	     // transfer data
+  SSP_TX_REG(SPI_CHAN)   = dataTx;       // transfer data
   SSP_CTRL_REG(SPI_CHAN) |= SSP_XCH;         // exchange data
     
   while(!spi_rx_fifo_data_ready());
