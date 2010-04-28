@@ -193,8 +193,17 @@ static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *r
 }
 
 static void cbob_spi_update_desync(short replycount, short incount, short cmd) {
-  int desync = (replycount > incount || replycount <= 0);
+  int desync;
   
+  if (replycount == 1 && incount == 0)
+    desync = 0;
+  if (replycount > incount)
+    desync = 1;
+  else if (replycount < 0)
+    desync = 1;
+  else
+    desync = 0;
+    
   if (desync == cbob_spi_desync)
     return;
     
