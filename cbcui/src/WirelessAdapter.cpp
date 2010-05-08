@@ -27,7 +27,6 @@
 
 WirelessAdapter::WirelessAdapter() : m_startscan(false)
 {
-  updateStatus();
   start();
 }
 WirelessAdapter::~WirelessAdapter() { }
@@ -46,8 +45,6 @@ void WirelessAdapter::startConnect(WirelessConnectionSettings connsettings)
 void WirelessAdapter::run() 
 {
   while (true) {
-    QThread::msleep(1000);
-    
     WirelessAdapterStatus oldstatus = m_status;
     updateStatus();
     if (oldstatus != m_status)
@@ -59,7 +56,7 @@ void WirelessAdapter::run()
     if (m_status.adapterstate < WirelessAdapterStatus::UP)
       continue;
     
-    if (m_startscan || oldstatus.adapterstate == WirelessAdapterStatus::NOT_UP) {
+    if (m_startscan || oldstatus.adapterstate != WirelessAdapterStatus::UP) {
       doScan();
       m_startscan = false;
     }
@@ -68,6 +65,8 @@ void WirelessAdapter::run()
       doConnect();
       m_startconnect = false;
     }
+    
+    QThread::msleep(1000);
   }
 }
 
