@@ -164,6 +164,7 @@ static int cbob_spi_do_transaction()
 }
 
 static int cbob_spi_desync;
+static int cbob_spi_desync_count;
 static void cbob_spi_update_desync() {
   int desync;
   
@@ -181,11 +182,14 @@ static void cbob_spi_update_desync() {
     
   cbob_spi_desync = desync;
   
-  if (desync)
+  if (desync) {
+    cbob_spi_desync_count++;
     printk(KERN_WARNING "CBOB desync detected. replycount is %hd, incount is %hd, cmd is %hd\n", 
       cbob_spi_message_replycount, cbob_spi_message_incount, cbob_spi_message_cmd);
-  else
-    printk(KERN_NOTICE "CBOB resynced.\n");
+  } else {
+    printk(KERN_NOTICE "CBOB resynced, after %d bad messages\n", cbob_spi_desync_count);
+    cbob_spi_desync_count = 0;
+  }
 }
 
 void cbob_spi_exit(void) 
