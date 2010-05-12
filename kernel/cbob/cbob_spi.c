@@ -222,9 +222,10 @@ static irqreturn_t cbob_timer_interrupt(int irq, void *dev_id, struct pt_regs *r
     return IRQ_NONE;
 
   IMX_TSTAT(TIMER) = TSTAT_CAPT | TSTAT_COMP; // clear interrupts
+  IMX_TCTL(TIMER) &= ~TCTL_TEN; // shut off timer
   
-  if (cbob_spi_do_transaction()) // if transaction finished
-    IMX_TCTL(TIMER) &= ~TCTL_TEN; // shut off timer
+  if (!cbob_spi_do_transaction()) // run transaction
+    IMX_TCTL(TIMER) |= TCTL_TEN; // if not last transaction, start timer to run it again
     
   return IRQ_HANDLED;
 }
