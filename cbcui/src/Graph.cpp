@@ -33,7 +33,7 @@
 #define ANGSCALE        1024
 #define ANGOFF          512
 
-Graph::Graph(QWidget *parent) : Page(parent)
+Graph::Graph(QWidget *parent) : Page(parent, true)
 {
     setupUi(this);
 
