@@ -29,8 +29,22 @@ VisionSelect::VisionSelect(QWidget *parent) :
 
     QObject::connect(ui_trackingButton, SIGNAL(clicked()), &m_tracking, SLOT(raisePage()));
     QObject::connect(ui_settingButton, SIGNAL(clicked()), &m_setting, SLOT(raisePage()));
+    QObject::connect(ui_enabledCheckBox, SIGNAL(stateChanged(int)), this, SLOT(enabled_changed(int)));
 }
 
 VisionSelect::~VisionSelect()
 {
+}
+
+void VisionSelect::enabled_changed(int newstate)
+{
+    if (newstate == Qt::Checked) {
+        ui_trackingButton->setEnabled(true);
+        ui_settingButton->setEnabled(true);
+        m_vision.m_camera->requestContinuousFrames();
+    } else {
+        ui_trackingButton->setEnabled(false);
+        ui_settingButton->setEnabled(false);
+        m_vision.m_camera->stopFrames();
+    }
 }
