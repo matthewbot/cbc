@@ -136,7 +136,7 @@ void WirelessAdapter::doScan()
   iwlist.waitForFinished();
   QString out = iwlist.readAllStandardOutput();
   
-  static const QRegExp scan_regexp("(\\w[\\w\\s]+):\\s?\"?([\\w\\d\\s]+)");
+  static const QRegExp scan_regexp("(\\w[\\w\\s]+):\\s?\"?([\\w\\d\\s]*)");
   
   int pos=0;
   m_scanresults.clear();
@@ -149,7 +149,10 @@ void WirelessAdapter::doScan()
     
     if (key == "ESSID") {
       m_scanresults.append(ScanResult());
-      m_scanresults.back().ssid = value;
+      if (value.length() > 0)
+      	m_scanresults.back().ssid = value;
+      else
+      	m_scanresults.back().ssid = "<Hidden SSID>";
     } else if (key == "Encryption key" && !m_scanresults.isEmpty()) {
       m_scanresults.back().encrypted = (value == "on");
     } else if (key == "Quality" && !m_scanresults.isEmpty()) {
