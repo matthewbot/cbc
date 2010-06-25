@@ -21,6 +21,7 @@
 // Author: Matthew Thompson (matthewbot@gmail.com)
 
 #include "WirelessAdapter.h"
+#include <QMutexLocker>
 #include <QProcess>
 #include <QRegExp>
 #include <QDebug>
@@ -30,6 +31,18 @@ WirelessAdapter::WirelessAdapter() : m_startscan(false)
   start();
 }
 WirelessAdapter::~WirelessAdapter() { }
+
+WirelessAdapterStatus WirelessAdapter::getStatus() const {
+  QMutexLocker locker(&m_mutex);
+  WirelessAdapterStatus status = m_status;
+  return status;
+}
+
+QList<ScanResult> WirelessAdapter::getScanResults() const {
+  QMutexLocker locker(&m_mutex);
+  QList<ScanResult> scanresults = m_scanresults;
+  return scanresults;
+}
 
 void WirelessAdapter::startScan() 
 {
@@ -44,7 +57,10 @@ void WirelessAdapter::startConnect(WirelessConnectionSettings connsettings)
 
 void WirelessAdapter::run() 
 {
-  while (true) {
+  while (true) {    
+    QThread::msleep(1000);
+    
+    QMutexLocker locker(&m_mutex);
     WirelessAdapterStatus oldstatus = m_status;
     updateStatus();
     if (oldstatus != m_status)
@@ -57,16 +73,14 @@ void WirelessAdapter::run()
       continue;
     
     if (m_startscan || oldstatus.adapterstate != WirelessAdapterStatus::UP) {
-      doScan();
+      doScan(locker);
       m_startscan = false;
     }
     
     if (m_startconnect) {
-      doConnect();
+      doConnect(locker);
       m_startconnect = false;
     }
-    
-    QThread::msleep(1000);
   }
 }
 
@@ -126,14 +140,16 @@ void WirelessAdapter::up()
   QProcess::execute("ifconfig rausb0 up");
 }
 
-void WirelessAdapter::doScan() 
+void WirelessAdapter::doScan(QMutexLocker &locker) 
 {
   m_status.scanning = true;
   statusChanged();
 
   QProcess iwlist;
+  locker.unlock();
   iwlist.start("iwlist rausb0 scan");
   iwlist.waitForFinished();
+  locker.relock();
   QString out = iwlist.readAllStandardOutput();
   
   static const QRegExp scan_regexp("(\\w[\\w\\s]+):\\s?\"?([\\w\\d\\s]*)");
@@ -150,9 +166,9 @@ void WirelessAdapter::doScan()
     if (key == "ESSID") {
       m_scanresults.append(ScanResult());
       if (value.length() > 0)
-      	m_scanresults.back().ssid = value;
+        m_scanresults.back().ssid = value;
       else
-      	m_scanresults.back().ssid = "<Hidden SSID>";
+        m_scanresults.back().ssid = "<Hidden SSID>";
     } else if (key == "Encryption key" && !m_scanresults.isEmpty()) {
       m_scanresults.back().encrypted = (value == "on");
     } else if (key == "Quality" && !m_scanresults.isEmpty()) {
@@ -167,7 +183,7 @@ void WirelessAdapter::doScan()
   statusChanged();
 }
 
-void WirelessAdapter::doConnect() {
+void WirelessAdapter::doConnect(QMutexLocker &locker) {
   m_status.connectionstate = WirelessAdapterStatus::CONNECTING;
   statusChanged();
   
@@ -202,16 +218,18 @@ void WirelessAdapter::doConnect() {
   
   int i;
   for (i=0;i<50;i++) {
+    locker.unlock();
     QThread::msleep(100);
   
     QProcess iwconfig;
     iwconfig.start("iwconfig rausb0");
     iwconfig.waitForFinished();
+    locker.relock();
     QString out = iwconfig.readAllStandardOutput();
     
     if (essid_regexp.indexIn(out) != -1 && essid_regexp.cap(1) == ssid) {
       m_status.ssid = ssid;
-      doObtainIP();
+      doObtainIP(locker);
       return;
     }
   }
@@ -220,13 +238,15 @@ void WirelessAdapter::doConnect() {
   statusChanged();
 }
 
-void WirelessAdapter::doObtainIP() {
+void WirelessAdapter::doObtainIP(QMutexLocker &locker) {
   m_status.connectionstate = WirelessAdapterStatus::OBTAINING_IP;
   statusChanged();
   
   QProcess udhcpc;
+  locker.unlock();
   udhcpc.start("udhcpc -q -f -n -i rausb0");
   udhcpc.waitForFinished();
+  locker.relock();
   
   QString out = udhcpc.readAllStandardOutput();
   static const QRegExp lease_regexp("Lease of ((?:\\d{1,3}\\.){3}\\d{1,3}) obtained");
