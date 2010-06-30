@@ -111,6 +111,7 @@ static void cbob_spi_run_transactions()
   if (time_after(jiffies, cbob_spi_last_message + usecs_to_jiffies(CBOB_TRANSACTION_DELAY)))
     cbob_spi_do_transaction(); // go ahead and do one now to save time
   
+  init_completion(&cbob_spi_message_completion);
   IMX_TCTL(TIMER) |= TCTL_TEN; // enable timer
   wait_for_completion(&cbob_spi_message_completion);  
   cbob_spi_last_message = jiffies;
@@ -157,7 +158,7 @@ static int cbob_spi_do_transaction()
   }
   
   if (++cbob_spi_current_transaction == CBOB_TRANSACTION_END) {
-    complete(&cbob_spi_message_completion);
+    complete_all(&cbob_spi_message_completion);
     return 1;
   } else
     return 0;
@@ -170,7 +171,7 @@ static void cbob_spi_update_desync() {
   
   if (cbob_spi_message_replycount == 1 && cbob_spi_message_incount == 0)
     desync = 0;
-  if (cbob_spi_message_replycount > cbob_spi_message_incount)
+  else if (cbob_spi_message_replycount > cbob_spi_message_incount)
     desync = 1;
   else if (cbob_spi_message_replycount < 0)
     desync = 1;
