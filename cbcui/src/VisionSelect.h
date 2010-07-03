@@ -43,6 +43,8 @@ private:
    Vision m_vision;
    VisionTracking m_tracking;
    VisionSettings m_setting;
+   
+   QSettings m_settings;
 };
 
 #endif
